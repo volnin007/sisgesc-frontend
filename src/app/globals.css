@@ -29,7 +29,6 @@ input, select, textarea, button {
   font-size: 0.95rem;
 }
 
-/* Layout com scroll independente (sidebar x conteúdo) */
 .app-shell {
   display: flex;
   height: 100vh;
@@ -43,6 +42,30 @@ input, select, textarea, button {
   overflow-x: hidden;
   flex-shrink: 0;
   overscroll-behavior: contain;
+  color: #ffffff !important;
+}
+
+/* Toda escrita sobre fundo escuro = branco */
+.app-sidebar,
+.app-sidebar a,
+.app-sidebar button,
+.app-sidebar p,
+.app-sidebar span,
+.app-sidebar h1,
+.app-sidebar h2,
+.app-sidebar h3 {
+  color: #ffffff;
+}
+
+.app-sidebar .text-gray-300,
+.app-sidebar .text-gray-400,
+.app-sidebar .text-gray-200 {
+  color: #f1f5f9 !important;
+}
+
+.app-sidebar .text-cyan-200,
+.app-sidebar .text-cyan-300 {
+  color: #a5f3fc !important;
 }
 
 .app-main {
@@ -58,6 +81,16 @@ input, select, textarea, button {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.doc-header-dark,
+.ficha-header-dark {
+  background: #0a0f1a;
+  color: #ffffff !important;
+}
+.doc-header-dark *,
+.ficha-header-dark * {
+  color: #ffffff !important;
 }
 
 @media print {

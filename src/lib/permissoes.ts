@@ -7,7 +7,6 @@ export type MenuItem = {
   children?: { label: string; href: string; perm: string }[];
 };
 
-/** Estrutura de módulos principais + submódulos */
 export const MENU_HIERARQUIA: MenuItem[] = [
   { label: 'Dashboard', href: '/', perm: 'dashboard' },
   {
@@ -52,6 +51,7 @@ export const MENU_HIERARQUIA: MenuItem[] = [
   { label: 'Calendário', href: '/calendario', perm: 'calendario' },
   { label: 'Avisos WhatsApp', href: '/avisos', perm: 'avisos' },
   { label: 'Usuários', href: '/usuarios', perm: 'usuarios' },
+  { label: 'Auditoria de Logs', href: '/auditoria', perm: 'auditoria.logs' },
   { label: 'IA Dúvidas', href: '/ia-duvidas', perm: 'ia_duvidas' },
   { label: 'Configuração', href: '/configuracao', perm: 'configuracao' },
 ];
