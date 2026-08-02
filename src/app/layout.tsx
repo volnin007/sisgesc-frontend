@@ -1,7 +1,10 @@
 import './globals.css';
 import { Sidebar } from '@/components/Sidebar';
 
-export const metadata = { title: 'SISGESC - Dimas Nasser | Volnin Tech Hacker', description: 'Gestão Escolar Pré ao 9º - Escola Municipal Dimas Nasser - Volnin Tech Hacker (66) 93618-2776' };
+export const metadata = {
+  title: 'SISGESC - Dimas Nasser | Volnin Tech Hacker',
+  description: 'Gestão Escolar Pré ao 9º - Escola Municipal Dimas Nasser - Volnin Tech Hacker (66) 93618-2776',
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,9 +20,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
           <div className="p-8 flex-1">{children}</div>
-          <footer className="bg-gray-900 text-white text-center py-4 text-xs">
-            <p className="font-bold">VOLNIN TECH HACKER</p>
-            <p>(66) 93618-2776 • Escola Municipal Dimas Nasser • Gestão 2025/2028</p>
+          <footer className="bg-[#0a0f1a] border-t border-cyan-500/10 px-8 py-4 flex justify-between items-center text-xs">
+            <div>
+              <p className="font-bold text-white tracking-wider">VOLNIN TECH HACKER</p>
+              <p className="text-[10px] text-cyan-300/60 tracking-widest">ETHICAL | SECURITY | CODE</p>
+            </div>
+            <div className="text-right">
+              <p className="font-bold text-white">Volnin Tech Hacker - (66) 93618-2776</p>
+              <p className="text-[11px] text-gray-400">Escola Municipal Dimas Nasser - Gestão 2025/2028</p>
+            </div>
           </footer>
         </main>
       </body>
