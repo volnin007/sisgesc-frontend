@@ -12,10 +12,12 @@ import {
   LogOut,
   UserCog,
   Shield,
+  ClipboardList,
 } from 'lucide-react';
 
 const menu = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/matricula', label: 'Nova Matrícula', icon: ClipboardList },
   { href: '/alunos', label: 'Alunos', icon: Users },
   { href: '/turmas', label: 'Turmas', icon: GraduationCap },
   { href: '/professores', label: 'Professores', icon: UserCog },
@@ -52,7 +54,8 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1">
         {menu.map((m) => {
           const base = m.href === '/' ? '/' : '/' + m.href.split('/').filter(Boolean)[0];
-          const isActive = m.href === '/' ? pathname === '/' : pathname === m.href || pathname.startsWith(base + '/') || pathname === base;
+          const isActive =
+            m.href === '/' ? pathname === '/' : pathname === m.href || pathname.startsWith(base + '/') || pathname === base;
           return (
             <Link
               key={m.href}
@@ -70,7 +73,10 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-6 pt-4 border-t border-white/10 space-y-3">
-        <button onClick={sair} className="w-full flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-red-400 py-2 rounded-lg hover:bg-white/5 transition">
+        <button
+          onClick={sair}
+          className="w-full flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-red-400 py-2 rounded-lg hover:bg-white/5 transition"
+        >
           <LogOut size={14} /> Sair
         </button>
         <div className="text-center space-y-1">
