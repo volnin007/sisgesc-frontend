@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -26,10 +26,13 @@ import {
   Building2,
   Accessibility,
   FileSignature,
+  ScrollText,
 } from 'lucide-react';
 import { useSidebar } from '@/components/SidebarContext';
 import { LOGO_ESCOLA_SM, LOGO_VOLNIN_SM } from '@/lib/logos';
 import { filterMenuByPerm, getStoredUser, type MenuItem } from '@/lib/permissoes';
+
+const IDLE_MS = 30_000;
 
 const iconByLabel: Record<string, any> = {
   Dashboard: LayoutDashboard,
@@ -47,10 +50,12 @@ const iconByLabel: Record<string, any> = {
   Alunos: Users,
   Turmas: GraduationCap,
   'Declaração / Transferência': FileSignature,
+  'Histórico Escolar': ScrollText,
   'Censo Escolar': BarChart3,
   'Diários de Classe': BookOpen,
   Frequência: ClipboardCheck,
   Boletins: FileText,
+  Planejamentos: ClipboardPen,
 };
 
 function pathActive(pathname: string, href?: string) {
@@ -65,6 +70,7 @@ export function Sidebar() {
   const { collapsed, toggle } = useSidebar();
   const [user, setUser] = useState<any>(null);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setUser(getStoredUser());
@@ -72,15 +78,43 @@ export function Sidebar() {
 
   const menu = useMemo(() => filterMenuByPerm(user), [user]);
 
+  // Abre apenas o grupo do módulo atual; fecha os demais
   useEffect(() => {
     const next: Record<string, boolean> = {};
     for (const item of menu) {
-      if (item.children?.some((c) => pathActive(pathname, c.href))) {
-        next[item.label] = true;
+      if (item.children) {
+        next[item.label] = item.children.some((c) => pathActive(pathname, c.href));
       }
     }
-    setOpenGroups((prev) => ({ ...prev, ...next }));
+    setOpenGroups(next);
   }, [pathname, menu]);
+
+  // Fecha grupos após 30s de inatividade
+  useEffect(() => {
+    const resetIdle = () => {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+      idleTimer.current = setTimeout(() => {
+        setOpenGroups((prev) => {
+          const closed: Record<string, boolean> = {};
+          for (const k of Object.keys(prev)) closed[k] = false;
+          // mantém aberto só o grupo da rota atual
+          for (const item of menu) {
+            if (item.children?.some((c) => pathActive(pathname, c.href))) {
+              closed[item.label] = true;
+            }
+          }
+          return closed;
+        });
+      }, IDLE_MS);
+    };
+    const events = ['click', 'keydown', 'mousemove', 'touchstart'] as const;
+    events.forEach((ev) => window.addEventListener(ev, resetIdle, { passive: true }));
+    resetIdle();
+    return () => {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+      events.forEach((ev) => window.removeEventListener(ev, resetIdle));
+    };
+  }, [menu, pathname]);
 
   if (pathname === '/login') return null;
 
@@ -90,8 +124,15 @@ export function Sidebar() {
     router.push('/login');
   };
 
+  // Ao abrir um grupo, fecha os outros automaticamente
   const toggleGroup = (label: string) =>
-    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+    setOpenGroups((prev) => {
+      const willOpen = !prev[label];
+      const next: Record<string, boolean> = {};
+      for (const k of Object.keys(prev)) next[k] = false;
+      next[label] = willOpen;
+      return next;
+    });
 
   const renderLeaf = (label: string, href: string, depth = 0) => {
     const Icon = iconByLabel[label] || FileText;
@@ -174,7 +215,7 @@ export function Sidebar() {
         collapsed ? 'w-[76px]' : 'w-64'
       } bg-[#0a0f1a] text-white p-3 flex flex-col border-r border-cyan-500/10 hidden md:flex transition-all duration-200`}
     >
-      <div className={`mb-4 flex ${collapsed ? 'flex-col items-center gap-2' : 'items-start justify-between'} gap-2`}>
+      <div className={`mb-4 flex ${collapsed ? 'flex-col items-center gap-2' : 'items-start'} gap-2`}>
         <div className="flex flex-col items-center w-full gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -195,26 +236,28 @@ export function Sidebar() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={LOGO_ESCOLA_SM} alt="Dimas Nasser" className="mx-auto mb-1 h-14 w-14 object-contain" />
               <p className="text-xs font-bold text-white leading-tight">SISGESC</p>
-              <p className="text-[10px] text-cyan-100/70 leading-snug">Escola Municipal Dimas Nasser</p>
+              <p className="text-[10px] text-cyan-100 leading-snug">Escola Municipal Dimas Nasser</p>
               {user?.perfil && (
-                <p className="text-[9px] text-emerald-300/80 mt-1 font-semibold">{user.perfil}</p>
+                <p className="text-[9px] text-emerald-300 mt-1 font-semibold">{user.perfil}</p>
               )}
             </div>
           )}
         </div>
-        <button
-          type="button"
-          onClick={toggle}
-          className="p-1.5 rounded-lg hover:bg-white/10 text-cyan-300/80 self-end"
-          title={collapsed ? 'Expandir menu' : 'Recolher menu'}
-        >
-          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-        </button>
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto pr-0.5">{menu.map(renderItem)}</nav>
 
+      {/* Controles na parte inferior — não atrapalha no mobile */}
       <div className="mt-4 pt-3 border-t border-white/10 space-y-2 shrink-0">
+        <button
+          type="button"
+          onClick={toggle}
+          className="w-full flex items-center justify-center gap-2 text-xs text-cyan-300 hover:text-white py-2 rounded-lg hover:bg-white/5 transition"
+          title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+        >
+          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          {!collapsed && (collapsed ? 'Expandir' : 'Recolher menu')}
+        </button>
         <button
           onClick={sair}
           className="w-full flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-red-400 py-2 rounded-lg hover:bg-white/5 transition"

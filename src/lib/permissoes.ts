@@ -17,13 +17,14 @@ export const MENU_HIERARQUIA: MenuItem[] = [
       { label: 'Alunos', href: '/alunos', perm: 'secretaria.alunos' },
       { label: 'Turmas', href: '/turmas', perm: 'secretaria.turmas' },
       { label: 'Declaração / Transferência', href: '/secretaria/declaracao', perm: 'secretaria.declaracao' },
+      { label: 'Histórico Escolar', href: '/secretaria/historico', perm: 'secretaria.declaracao' },
       { label: 'Censo Escolar', href: '/censo', perm: 'censo' },
     ],
   },
   {
     label: 'Coordenação',
     children: [
-      { label: 'Visão geral / Planejamentos', href: '/coordenacao', perm: 'coordenacao.planejamentos' },
+      { label: 'Planejamentos', href: '/coordenacao', perm: 'coordenacao.planejamentos' },
       { label: 'Busca Ativa', href: '/coordenacao/busca-ativa', perm: 'coordenacao.busca_ativa' },
       { label: 'Responsável', href: '/coordenacao/responsavel', perm: 'coordenacao.responsavel' },
       { label: 'Advertência', href: '/coordenacao/advertencia', perm: 'coordenacao.advertencia' },
@@ -33,7 +34,7 @@ export const MENU_HIERARQUIA: MenuItem[] = [
   {
     label: 'Professores',
     children: [
-      { label: 'Cadastro & Planejamentos', href: '/professores', perm: 'professores.planejamentos' },
+      { label: 'Planejamentos', href: '/professores', perm: 'professores.planejamentos' },
       { label: 'Diários de Classe', href: '/diario', perm: 'professores.diarios' },
       { label: 'Frequência', href: '/frequencia', perm: 'professores.frequencia' },
       { label: 'Boletins', href: '/boletim/1', perm: 'professores.boletins' },
