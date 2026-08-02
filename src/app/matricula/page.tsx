@@ -2,6 +2,14 @@
 import { FormEvent, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import {
+  formatCep,
+  formatCpf,
+  formatPhone,
+  onlyDigits,
+  validateMatricula,
+  type MatriculaErrors,
+} from '@/lib/validacao';
 import { Camera, CheckCircle2, ChevronDown, FileText, Save, Upload, X } from 'lucide-react';
 
 type Responsavel = {
@@ -95,6 +103,7 @@ export default function MatriculaPage() {
   const [openOptional, setOpenOptional] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<MatriculaErrors>({});
   const [message, setMessage] = useState('');
 
   const [nome, setNome] = useState('');
@@ -134,10 +143,28 @@ export default function MatriculaPage() {
     api.get('/turmas').then((r) => setTurmas(r.data)).catch(() => {});
   }, []);
 
+  function clearFieldError(key: string) {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
   async function onFoto(file?: File | null) {
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('A foto 3×4 deve ser uma imagem (JPG/PNG).');
+      return;
+    }
+    if (file.size > 5_000_000) {
+      setError('Foto original muito grande. Use imagem menor que 5MB.');
+      return;
+    }
     try {
       setFotoUrl(await processarFoto3x4(file));
+      setError('');
     } catch {
       setError('Não foi possível processar a foto 3x4.');
     }
@@ -145,6 +172,14 @@ export default function MatriculaPage() {
 
   async function onDoc(tipo: DocSlot['tipo'], file?: File | null) {
     if (!file) return;
+    const okMime =
+      file.type.startsWith('image/') ||
+      file.type === 'application/pdf' ||
+      file.name.toLowerCase().endsWith('.pdf');
+    if (!okMime) {
+      setError('Anexo deve ser PDF ou imagem.');
+      return;
+    }
     if (file.size > 900_000) {
       setError(`Arquivo "${file.name}" muito grande. Máximo ~900KB.`);
       return;
@@ -174,35 +209,63 @@ export default function MatriculaPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setSaving(true);
     setError('');
     setMessage('');
+
+    const errors = validateMatricula({
+      nome,
+      dataNascimento,
+      sexo,
+      racaCor,
+      nacionalidade,
+      sus,
+      certidaoNascimento,
+      telefoneResponsavel,
+      cpf,
+      cep,
+      estado,
+      deficiencia,
+      tipoDeficiencia,
+      maeNome: mae.nome,
+      paiNome: pai.nome,
+      respLegalNome: respLegal.nome,
+    });
+
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors);
+      setError('Corrija os campos destacados antes de salvar.');
+      if (errors.responsaveis) setOpenOptional(true);
+      return;
+    }
+    setFieldErrors({});
+
+    setSaving(true);
     try {
       const responsaveis = [mae, pai, respLegal]
         .filter((r) => r.nome.trim())
         .map((r) => ({
-          nome: r.nome,
+          nome: r.nome.trim(),
           parentesco: r.parentesco,
-          telefone: r.telefone || telefoneResponsavel || undefined,
-          cpf: r.cpf || undefined,
+          telefone: onlyDigits(r.telefone) || onlyDigits(telefoneResponsavel) || undefined,
+          cpf: onlyDigits(r.cpf) || undefined,
           rg: r.rg || undefined,
           principal: Boolean(r.principal),
           podeBuscar: true,
         }));
 
       const { data: aluno } = await api.post('/alunos', {
-        nomeCompleto: nome,
+        nomeCompleto: nome.trim(),
         dataNascimento,
-        nomeMae: mae.nome || undefined,
+        nomeMae: mae.nome.trim() || undefined,
         sexo,
         zona: moradia,
         racaCor,
-        nacionalidade,
-        sus: sus || undefined,
-        certidaoNascimento: certidaoNascimento || undefined,
-        telefoneContato: telefoneResponsavel || undefined,
-        cpf: cpf || undefined,
-        nis: nis || undefined,
+        nacionalidade: nacionalidade.trim(),
+        sus: onlyDigits(sus),
+        certidaoNascimento: certidaoNascimento.trim(),
+        telefoneContato: onlyDigits(telefoneResponsavel),
+        cpf: onlyDigits(cpf) || undefined,
+        nis: onlyDigits(nis) || undefined,
         tipoSanguineo: tipoSanguineo || undefined,
         fatorRh: fatorRh || undefined,
         naturalidade: naturalidade || undefined,
@@ -216,8 +279,8 @@ export default function MatriculaPage() {
         numero: numero || undefined,
         bairro: bairro || undefined,
         cidade: cidade || undefined,
-        estado: estado || undefined,
-        cep: cep || undefined,
+        estado: estado.toUpperCase() || undefined,
+        cep: onlyDigits(cep) || undefined,
         fotoUrl: fotoUrl || undefined,
         responsaveis,
       });
@@ -260,7 +323,7 @@ export default function MatriculaPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-slate-900">Ficha de matrícula</h1>
-          <p className="text-sm text-slate-500">Documentos digitais · foto 3×4 · Escola Municipal Dimas Nasser</p>
+          <p className="text-sm text-slate-500">Validação de CPF, telefone, SUS e idade · Dimas Nasser</p>
         </div>
         <button type="button" onClick={() => router.push('/alunos')} className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold text-slate-600">
           <X size={16} /> Lista de alunos
@@ -269,11 +332,11 @@ export default function MatriculaPage() {
 
       {message && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>}
 
-      <form onSubmit={onSubmit} className="rounded-2xl border border-slate-300 bg-white shadow-sm overflow-hidden">
+      <form onSubmit={onSubmit} noValidate className="rounded-2xl border border-slate-300 bg-white shadow-sm overflow-hidden">
         <div className="bg-gradient-to-r from-slate-900 via-[#12325a] to-cyan-800 text-white px-5 py-4">
           <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100 font-semibold">Ficha de matrícula / cadastro do aluno</p>
           <h2 className="text-lg font-bold">Escola Municipal Dimas Nasser</h2>
-          <p className="text-xs text-blue-100">Campos com * são obrigatórios. Anexos podem ser enviados agora ou depois.</p>
+          <p className="text-xs text-blue-100">Campos com * são obrigatórios. O sistema valida CPF, telefone e cartão SUS.</p>
         </div>
 
         <div className="p-5 space-y-6">
@@ -301,43 +364,93 @@ export default function MatriculaPage() {
             <div className="space-y-3">
               <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800 border-b pb-2">1. Dados obrigatórios *</h3>
               <div className="grid sm:grid-cols-2 gap-3">
-                <Field label="Nome completo *" className="sm:col-span-2">
-                  <input required value={nome} onChange={(e) => setNome(e.target.value)} className="field-input" />
+                <Field label="Nome completo *" className="sm:col-span-2" error={fieldErrors.nome}>
+                  <input
+                    value={nome}
+                    onChange={(e) => {
+                      setNome(e.target.value);
+                      clearFieldError('nome');
+                    }}
+                    className={inputCls(fieldErrors.nome)}
+                    placeholder="Nome e sobrenome"
+                  />
                 </Field>
-                <Field label="Data de nascimento *">
-                  <input required type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} className="field-input" />
+                <Field label="Data de nascimento *" error={fieldErrors.dataNascimento}>
+                  <input
+                    type="date"
+                    value={dataNascimento}
+                    onChange={(e) => {
+                      setDataNascimento(e.target.value);
+                      clearFieldError('dataNascimento');
+                    }}
+                    className={inputCls(fieldErrors.dataNascimento)}
+                  />
                 </Field>
-                <Field label="Sexo *">
-                  <select required value={sexo} onChange={(e) => setSexo(e.target.value)} className="field-input">
+                <Field label="Sexo *" error={fieldErrors.sexo}>
+                  <select value={sexo} onChange={(e) => setSexo(e.target.value)} className={inputCls(fieldErrors.sexo)}>
                     <option value="MASCULINO">Masculino</option>
                     <option value="FEMININO">Feminino</option>
                     <option value="OUTRO">Outro</option>
                   </select>
                 </Field>
-                <Field label="Raça/cor *">
-                  <select required value={racaCor} onChange={(e) => setRacaCor(e.target.value)} className="field-input">
+                <Field label="Raça/cor *" error={fieldErrors.racaCor}>
+                  <select value={racaCor} onChange={(e) => setRacaCor(e.target.value)} className={inputCls(fieldErrors.racaCor)}>
                     {RACAS.map((r) => (
                       <option key={r} value={r}>{r}</option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Nacionalidade *">
-                  <input required value={nacionalidade} onChange={(e) => setNacionalidade(e.target.value)} className="field-input" />
+                <Field label="Nacionalidade *" error={fieldErrors.nacionalidade}>
+                  <input
+                    value={nacionalidade}
+                    onChange={(e) => {
+                      setNacionalidade(e.target.value);
+                      clearFieldError('nacionalidade');
+                    }}
+                    className={inputCls(fieldErrors.nacionalidade)}
+                  />
                 </Field>
-                <Field label="Cartão SUS *">
-                  <input required value={sus} onChange={(e) => setSus(e.target.value)} className="field-input" />
+                <Field label="Cartão SUS * (15 dígitos)" error={fieldErrors.sus}>
+                  <input
+                    value={sus}
+                    inputMode="numeric"
+                    maxLength={15}
+                    onChange={(e) => {
+                      setSus(onlyDigits(e.target.value).slice(0, 15));
+                      clearFieldError('sus');
+                    }}
+                    className={inputCls(fieldErrors.sus)}
+                    placeholder="000000000000000"
+                  />
                 </Field>
-                <Field label="Certidão de nascimento (nº) *">
-                  <input required value={certidaoNascimento} onChange={(e) => setCertidaoNascimento(e.target.value)} className="field-input" placeholder="Nº / livro / folha / cartório" />
+                <Field label="Certidão de nascimento (nº) *" error={fieldErrors.certidaoNascimento}>
+                  <input
+                    value={certidaoNascimento}
+                    onChange={(e) => {
+                      setCertidaoNascimento(e.target.value);
+                      clearFieldError('certidaoNascimento');
+                    }}
+                    className={inputCls(fieldErrors.certidaoNascimento)}
+                    placeholder="Nº / livro / folha / cartório"
+                  />
                 </Field>
                 <Field label="Moradia *">
-                  <select required value={moradia} onChange={(e) => setMoradia(e.target.value as 'URBANA' | 'RURAL')} className="field-input">
+                  <select value={moradia} onChange={(e) => setMoradia(e.target.value as 'URBANA' | 'RURAL')} className="field-input">
                     <option value="URBANA">Urbana</option>
                     <option value="RURAL">Rural</option>
                   </select>
                 </Field>
-                <Field label="Telefone do responsável *">
-                  <input required value={telefoneResponsavel} onChange={(e) => setTelefoneResponsavel(e.target.value)} className="field-input" />
+                <Field label="Telefone do responsável *" error={fieldErrors.telefoneResponsavel}>
+                  <input
+                    value={telefoneResponsavel}
+                    inputMode="tel"
+                    onChange={(e) => {
+                      setTelefoneResponsavel(formatPhone(e.target.value));
+                      clearFieldError('telefoneResponsavel');
+                    }}
+                    className={inputCls(fieldErrors.telefoneResponsavel)}
+                    placeholder="(66) 99999-0000"
+                  />
                 </Field>
               </div>
             </div>
@@ -346,16 +459,44 @@ export default function MatriculaPage() {
           <section className="space-y-3">
             <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800 border-b pb-2">2. Endereço</h3>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <Field label="Rua / Avenida" className="lg:col-span-2"><input value={logradouro} onChange={(e) => setLogradouro(e.target.value)} className="field-input" /></Field>
-              <Field label="Número"><input value={numero} onChange={(e) => setNumero(e.target.value)} className="field-input" /></Field>
-              <Field label="Bairro"><input value={bairro} onChange={(e) => setBairro(e.target.value)} className="field-input" /></Field>
-              <Field label="Cidade"><input value={cidade} onChange={(e) => setCidade(e.target.value)} className="field-input" /></Field>
-              <Field label="UF"><input value={estado} onChange={(e) => setEstado(e.target.value)} className="field-input" maxLength={2} /></Field>
-              <Field label="CEP"><input value={cep} onChange={(e) => setCep(e.target.value)} className="field-input" /></Field>
+              <Field label="Rua / Avenida" className="lg:col-span-2">
+                <input value={logradouro} onChange={(e) => setLogradouro(e.target.value)} className="field-input" />
+              </Field>
+              <Field label="Número">
+                <input value={numero} onChange={(e) => setNumero(e.target.value)} className="field-input" />
+              </Field>
+              <Field label="Bairro">
+                <input value={bairro} onChange={(e) => setBairro(e.target.value)} className="field-input" />
+              </Field>
+              <Field label="Cidade">
+                <input value={cidade} onChange={(e) => setCidade(e.target.value)} className="field-input" />
+              </Field>
+              <Field label="UF" error={fieldErrors.estado}>
+                <input
+                  value={estado}
+                  maxLength={2}
+                  onChange={(e) => {
+                    setEstado(e.target.value.toUpperCase());
+                    clearFieldError('estado');
+                  }}
+                  className={inputCls(fieldErrors.estado)}
+                />
+              </Field>
+              <Field label="CEP" error={fieldErrors.cep}>
+                <input
+                  value={cep}
+                  inputMode="numeric"
+                  onChange={(e) => {
+                    setCep(formatCep(e.target.value));
+                    clearFieldError('cep');
+                  }}
+                  className={inputCls(fieldErrors.cep)}
+                  placeholder="00000-000"
+                />
+              </Field>
             </div>
           </section>
 
-          {/* Documentos */}
           <section className="space-y-3">
             <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800 border-b pb-2 flex items-center gap-2">
               <Upload size={16} /> 3. Anexos digitais (PDF ou imagem · máx. ~900KB cada)
@@ -400,10 +541,27 @@ export default function MatriculaPage() {
             {openOptional && (
               <div className="p-4 space-y-5">
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <Field label="CPF"><input value={cpf} onChange={(e) => setCpf(e.target.value)} className="field-input" /></Field>
-                  <Field label="NIS"><input value={nis} onChange={(e) => setNis(e.target.value)} className="field-input" /></Field>
-                  <Field label="Naturalidade"><input value={naturalidade} onChange={(e) => setNaturalidade(e.target.value)} className="field-input" /></Field>
-                  <Field label="Tipo sanguíneo"><input value={tipoSanguineo} onChange={(e) => setTipoSanguineo(e.target.value)} className="field-input" /></Field>
+                  <Field label="CPF do aluno" error={fieldErrors.cpf}>
+                    <input
+                      value={cpf}
+                      inputMode="numeric"
+                      onChange={(e) => {
+                        setCpf(formatCpf(e.target.value));
+                        clearFieldError('cpf');
+                      }}
+                      className={inputCls(fieldErrors.cpf)}
+                      placeholder="000.000.000-00"
+                    />
+                  </Field>
+                  <Field label="NIS">
+                    <input value={nis} inputMode="numeric" onChange={(e) => setNis(onlyDigits(e.target.value).slice(0, 11))} className="field-input" />
+                  </Field>
+                  <Field label="Naturalidade">
+                    <input value={naturalidade} onChange={(e) => setNaturalidade(e.target.value)} className="field-input" />
+                  </Field>
+                  <Field label="Tipo sanguíneo">
+                    <input value={tipoSanguineo} onChange={(e) => setTipoSanguineo(e.target.value)} className="field-input" />
+                  </Field>
                   <Field label="Fator RH">
                     <select value={fatorRh} onChange={(e) => setFatorRh(e.target.value)} className="field-input">
                       <option value="">Não informado</option>
@@ -411,7 +569,9 @@ export default function MatriculaPage() {
                       <option value="NEGATIVO">Negativo (-)</option>
                     </select>
                   </Field>
-                  <Field label="Histórico (escola de origem)"><input value={historicoEscolarOrigem} onChange={(e) => setHistoricoEscolarOrigem(e.target.value)} className="field-input" /></Field>
+                  <Field label="Histórico (escola de origem)">
+                    <input value={historicoEscolarOrigem} onChange={(e) => setHistoricoEscolarOrigem(e.target.value)} className="field-input" />
+                  </Field>
                 </div>
 
                 <div className="grid sm:grid-cols-3 gap-3">
@@ -426,19 +586,29 @@ export default function MatriculaPage() {
                   </Field>
                 )}
                 {deficiencia && (
-                  <Field label="Tipo de deficiência">
-                    <input value={tipoDeficiencia} onChange={(e) => setTipoDeficiencia(e.target.value)} className="field-input" />
+                  <Field label="Tipo de deficiência *" error={fieldErrors.tipoDeficiencia}>
+                    <input
+                      value={tipoDeficiencia}
+                      onChange={(e) => {
+                        setTipoDeficiencia(e.target.value);
+                        clearFieldError('tipoDeficiencia');
+                      }}
+                      className={inputCls(fieldErrors.tipoDeficiencia)}
+                    />
                   </Field>
                 )}
 
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold uppercase tracking-wide text-slate-600 flex items-center gap-2">
-                    <FileText size={14} /> Responsáveis
+                    <FileText size={14} /> Responsáveis (ao menos um obrigatório)
                   </h4>
+                  {fieldErrors.responsaveis && (
+                    <p className="text-xs text-red-600 font-medium">{fieldErrors.responsaveis}</p>
+                  )}
                   <div className="grid lg:grid-cols-3 gap-3">
-                    <RespCard title="Mãe" data={mae} onChange={(k, v) => setMae((p) => ({ ...p, [k]: v }))} />
-                    <RespCard title="Pai" data={pai} onChange={(k, v) => setPai((p) => ({ ...p, [k]: v }))} />
-                    <RespCard title="Responsável legal" data={respLegal} onChange={(k, v) => setRespLegal((p) => ({ ...p, [k]: v }))} />
+                    <RespCard title="Mãe" data={mae} onChange={(k, v) => { setMae((p) => ({ ...p, [k]: v })); clearFieldError('responsaveis'); }} />
+                    <RespCard title="Pai" data={pai} onChange={(k, v) => { setPai((p) => ({ ...p, [k]: v })); clearFieldError('responsaveis'); }} />
+                    <RespCard title="Responsável legal" data={respLegal} onChange={(k, v) => { setRespLegal((p) => ({ ...p, [k]: v })); clearFieldError('responsaveis'); }} />
                   </div>
                 </div>
 
@@ -482,16 +652,35 @@ export default function MatriculaPage() {
           border-color: #0891b2;
           box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15);
         }
+        .field-input-error {
+          border-color: #f87171 !important;
+          background: #fef2f2;
+        }
       `}</style>
     </div>
   );
 }
 
-function Field({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) {
+function inputCls(err?: string) {
+  return `field-input ${err ? 'field-input-error' : ''}`;
+}
+
+function Field({
+  label,
+  children,
+  className = '',
+  error,
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+  error?: string;
+}) {
   return (
     <label className={`block ${className}`}>
       <span className="block text-xs font-semibold text-slate-600 mb-1">{label}</span>
       {children}
+      {error && <span className="mt-1 block text-[11px] text-red-600 font-medium">{error}</span>}
     </label>
   );
 }
@@ -510,8 +699,20 @@ function RespCard({
       <p className="text-xs font-bold uppercase tracking-wide text-slate-700">{title}</p>
       <input value={data.nome} onChange={(e) => onChange('nome', e.target.value)} className="field-input" placeholder="Nome completo" />
       <input value={data.rg} onChange={(e) => onChange('rg', e.target.value)} className="field-input" placeholder="RG" />
-      <input value={data.cpf} onChange={(e) => onChange('cpf', e.target.value)} className="field-input" placeholder="CPF" />
-      <input value={data.telefone} onChange={(e) => onChange('telefone', e.target.value)} className="field-input" placeholder="Telefone" />
+      <input
+        value={data.cpf}
+        onChange={(e) => onChange('cpf', formatCpf(e.target.value))}
+        className="field-input"
+        placeholder="CPF"
+        inputMode="numeric"
+      />
+      <input
+        value={data.telefone}
+        onChange={(e) => onChange('telefone', formatPhone(e.target.value))}
+        className="field-input"
+        placeholder="Telefone"
+        inputMode="tel"
+      />
     </div>
   );
 }
