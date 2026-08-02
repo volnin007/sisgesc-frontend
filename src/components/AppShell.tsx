@@ -14,7 +14,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   if (isLogin) return <>{children}</>;
 
   return (
-    <div className="app-shell bg-slate-100">
+    <div className="app-shell">
       <Sidebar />
       <main className="app-main">
         <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-3 flex justify-between items-center shadow-sm shrink-0 z-10">

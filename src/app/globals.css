@@ -1,15 +1,58 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-body { font-family: Inter, system-ui, sans-serif; }
+
+body {
+  font-family: Inter, system-ui, sans-serif;
+  margin: 0;
+}
+
+/* ===== LAYOUT PRINCIPAL (sidebar + conteúdo) ===== */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background: #f1f5f9;
+}
+
+.app-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 40;
+}
+
+.app-main {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #f1f5f9;
+}
+
+.app-main-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
 
 /* Print helpers */
 @media print {
   .no-print {
     display: none !important;
   }
-  aside, nav, .sidebar {
+  aside, nav, .sidebar, .app-sidebar {
     display: none !important;
+  }
+  .app-shell, .app-main, .app-main-scroll {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
   }
   body {
     background: white !important;
@@ -25,42 +68,34 @@ body { font-family: Inter, system-ui, sans-serif; }
 .doc-header {
   color: #111827 !important;
 }
-.doc-header p, .doc-header h1, .doc-header h2 {
+.doc-header p,
+.doc-header h1,
+.doc-header h2 {
   color: #111827 !important;
 }
 
-/* ===== TEXTO BRANCO EM FUNDOS ESCUROS ===== */
-.bg-\[\#0a0f1a\] ,
-.bg-\[\#0a0f1a\] *,
-.bg-gray-900 ,
-.bg-gray-900 *,
-.bg-slate-900 ,
-.bg-slate-900 *,
-.bg-zinc-900 ,
-.bg-zinc-900 *,
-.bg-black ,
-.bg-black *,
-.doc-header-dark ,
-.doc-header-dark *,
-.ficha-header-dark ,
-.ficha-header-dark * {
-  color: #ffffff !important;
-}
-
-.bg-\[\#0a0f1a\] .text-cyan-300,
-.bg-\[\#0a0f1a\] .text-cyan-200,
-.bg-\[\#0a0f1a\] .text-green-400,
-.bg-\[\#0a0f1a\] .text-red-300,
-.bg-\[\#0a0f1a\] .text-yellow-300 {
-  color: inherit !important;
-}
-
+/* ===== TEXTO BRANCO SÓ EM FUNDOS ESCUROS (sidebar/footer) ===== */
+.app-sidebar,
+.app-sidebar a,
+.app-sidebar button,
+.app-sidebar p,
+.app-sidebar span,
+footer.bg-\[\#0a0f1a\],
 footer.bg-\[\#0a0f1a\] p,
 footer.bg-\[\#0a0f1a\] span,
 footer.bg-\[\#0a0f1a\] a {
-  color: #ffffff !important;
+  color: #ffffff;
 }
+
+.app-sidebar .text-cyan-300,
+.app-sidebar .text-cyan-200,
+.app-sidebar .text-cyan-100,
+.app-sidebar .text-green-400,
+.app-sidebar .text-emerald-300,
+.app-sidebar .text-gray-300,
+.app-sidebar .text-gray-400,
+footer.bg-\[\#0a0f1a\] .text-cyan-300\/70,
 footer.bg-\[\#0a0f1a\] .text-cyan-300\/60,
 footer.bg-\[\#0a0f1a\] .text-gray-400 {
-  color: rgba(165, 243, 252, 0.7) !important;
+  color: inherit;
 }
