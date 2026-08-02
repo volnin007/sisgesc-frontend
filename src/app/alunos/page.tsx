@@ -2,30 +2,40 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Search, Users, UserPlus } from 'lucide-react';
+import { FileText, Search, UserPlus, UserRound, Users } from 'lucide-react';
 
 export default function AlunosPage() {
   const [alunos, setAlunos] = useState<any[]>([]);
   const [busca, setBusca] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const carregar = () =>
+  const carregar = () => {
+    setLoading(true);
     api
       .get('/alunos', { params: { nome: busca || undefined } })
-      .then((r) => setAlunos(r.data))
-      .catch(() => {});
+      .then((r) => setAlunos(r.data || []))
+      .catch(() => setAlunos([]))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     carregar();
   }, []);
 
+  const incompletos = alunos.filter((a) => !a.telefoneContato || !a.sus).length;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Users className="text-cyan-600" />
+        <div className="flex items-center gap-3">
+          <div className="h-11 w-11 rounded-xl bg-cyan-50 text-cyan-700 flex items-center justify-center">
+            <Users size={22} />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold">Alunos</h1>
-            <p className="text-sm text-gray-500">Lista · ficha · foto 3×4</p>
+            <h1 className="text-2xl font-black text-slate-900">Alunos</h1>
+            <p className="text-sm text-slate-500">
+              {alunos.length} cadastros · ficha oficial · documentos digitais
+            </p>
           </div>
         </div>
         <Link
@@ -36,58 +46,101 @@ export default function AlunosPage() {
         </Link>
       </div>
 
-      <div className="bg-white rounded-2xl border">
-        <div className="p-4 border-b flex gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="relative flex-1 min-w-[220px] max-w-md">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
-            placeholder="Buscar por nome..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            className="border p-2 rounded-lg w-64 text-sm"
+            onKeyDown={(e) => e.key === 'Enter' && carregar()}
+            placeholder="Buscar por nome, CPF ou SUS..."
+            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
           />
-          <button onClick={carregar} className="border px-4 rounded-lg text-sm flex items-center gap-1">
-            <Search size={14} /> Buscar
-          </button>
         </div>
+        <button
+          type="button"
+          onClick={carregar}
+          className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white"
+        >
+          Buscar
+        </button>
+        <span className="text-xs text-slate-500">
+          {incompletos > 0
+            ? `${incompletos} cadastro(s) sem SUS ou telefone`
+            : 'Dados básicos ok'}
+        </span>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left">
+            <thead className="bg-slate-50 text-slate-500 text-left">
               <tr>
-                <th className="p-3 w-14">Foto</th>
-                <th className="p-3">Nome</th>
-                <th className="p-3">Nascimento</th>
-                <th className="p-3">Mãe</th>
-                <th className="p-3">Zona</th>
-                <th className="p-3">Turma</th>
-                <th className="p-3">Responsáveis</th>
+                <th className="px-4 py-3 font-medium">Aluno</th>
+                <th className="px-4 py-3 font-medium">Moradia</th>
+                <th className="px-4 py-3 font-medium">SUS / CPF</th>
+                <th className="px-4 py-3 font-medium">Telefone</th>
+                <th className="px-4 py-3 font-medium">Turma</th>
+                <th className="px-4 py-3 font-medium">Docs</th>
+                <th className="px-4 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody>
-              {alunos.map((a) => (
-                <tr key={a.id} className="border-t hover:bg-gray-50">
-                  <td className="p-2">
-                    {a.fotoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={a.fotoUrl} alt="" className="w-10 h-12 object-cover rounded border" />
-                    ) : (
-                      <div className="w-10 h-12 rounded border bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">
-                        3×4
-                      </div>
-                    )}
-                  </td>
-                  <td className="p-3 font-medium">{a.nomeCompleto}</td>
-                  <td className="p-3">{new Date(a.dataNascimento).toLocaleDateString('pt-BR')}</td>
-                  <td className="p-3">{a.nomeMae}</td>
-                  <td className="p-3">{a.zona}</td>
-                  <td className="p-3">{a.matriculas?.[0]?.turma?.nome || '—'}</td>
-                  <td className="p-3 text-xs text-gray-600">
-                    {(a.responsaveis || []).map((r: any) => r.responsavel?.nome).filter(Boolean).join(', ') || '—'}
+              {loading && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
+                    Carregando...
                   </td>
                 </tr>
-              ))}
-              {alunos.length === 0 && (
+              )}
+              {!loading &&
+                alunos.map((a) => (
+                  <tr key={a.id} className="border-t border-slate-100 hover:bg-slate-50/80">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-11 w-9 rounded-lg border bg-slate-100 overflow-hidden flex items-center justify-center shrink-0">
+                          {a.fotoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={a.fotoUrl} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <UserRound size={16} className="text-slate-400" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900">{a.nomeCompleto}</p>
+                          <p className="text-[11px] text-slate-400">
+                            {a.sexo || '—'} · nasc. {new Date(a.dataNascimento).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{a.zona || '—'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-600">
+                      <div>SUS: {a.sus || '—'}</div>
+                      <div>CPF: {a.cpf || '—'}</div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{a.telefoneContato || '—'}</td>
+                    <td className="px-4 py-3 text-slate-600">{a.matriculas?.[0]?.turma?.nome || '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                        <FileText size={12} />
+                        {a._count?.documentos ?? 0}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/alunos/${a.id}`}
+                        className="text-xs font-bold text-cyan-700 hover:underline"
+                      >
+                        Abrir ficha
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              {!loading && alunos.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-gray-400">
-                    Nenhum aluno. Use <strong>Nova matrícula</strong> para cadastrar.
+                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
+                    Nenhum aluno. Use <Link href="/matricula" className="text-cyan-700 font-semibold">Nova matrícula</Link>.
                   </td>
                 </tr>
               )}

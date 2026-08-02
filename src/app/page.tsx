@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import Link from 'next/link';
-import { Users, GraduationCap, AlertTriangle, BookOpen } from 'lucide-react';
+import { Users, GraduationCap, AlertTriangle, BookOpen, ClipboardList, UserPlus } from 'lucide-react';
 
 export default function Dashboard() {
   const [turmas, setTurmas] = useState<any[]>([]);
@@ -30,9 +30,17 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500">Escola Municipal Dimas Nasser · visão geral</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-500">Escola Municipal Dimas Nasser · visão geral operacional</p>
+        </div>
+        <Link
+          href="/matricula"
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800"
+        >
+          <UserPlus size={16} /> Nova matrícula
+        </Link>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -63,15 +71,11 @@ export default function Dashboard() {
             <BookOpen size={14} /> Atalhos
           </div>
           <div className="flex flex-col gap-1 mt-1">
-            <Link href="/diario" className="text-xs text-cyan-700 hover:underline">
-              Diário de classe
+            <Link href="/alunos" className="text-xs text-cyan-700 hover:underline flex items-center gap-1">
+              <ClipboardList size={12} /> Fichas de alunos
             </Link>
-            <Link href="/ia-duvidas" className="text-xs text-cyan-700 hover:underline">
-              IA Dúvidas
-            </Link>
-            <Link href="/boletim/3" className="text-xs text-cyan-700 hover:underline">
-              Consultar boletim
-            </Link>
+            <Link href="/diario" className="text-xs text-cyan-700 hover:underline">Diário de classe</Link>
+            <Link href="/ia-duvidas" className="text-xs text-cyan-700 hover:underline">IA Dúvidas</Link>
           </div>
         </div>
       </div>
@@ -112,14 +116,10 @@ export default function Dashboard() {
                   {t.etapa}
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                {t.turno} · {t.anoSerie}
-              </p>
+              <p className="text-xs text-gray-500 mt-1">{t.turno} · {t.anoSerie}</p>
               <div className="mt-3">
                 <div className="flex justify-between text-[11px] text-gray-500 mb-1">
-                  <span>
-                    {t.ocupacao || 0}/{t.capacidadeMax} alunos
-                  </span>
+                  <span>{t.ocupacao || 0}/{t.capacidadeMax} alunos</span>
                   <span>{t.vagas ?? t.capacidadeMax - (t.ocupacao || 0)} vagas</span>
                 </div>
                 <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">

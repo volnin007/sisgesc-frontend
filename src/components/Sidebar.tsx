@@ -18,7 +18,7 @@ import {
 const menu = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/matricula', label: 'Nova Matrícula', icon: ClipboardList },
-  { href: '/alunos', label: 'Alunos', icon: Users },
+  { href: '/alunos', label: 'Alunos / Fichas', icon: Users },
   { href: '/turmas', label: 'Turmas', icon: GraduationCap },
   { href: '/professores', label: 'Professores', icon: UserCog },
   { href: '/diario', label: 'Diário de Classe', icon: BookOpen },
