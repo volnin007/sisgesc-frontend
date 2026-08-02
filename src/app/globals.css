@@ -18,7 +18,6 @@ body {
   font-size: 15.5px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-  overflow: hidden;
 }
 
 h1, h2, h3, h4 {
@@ -30,7 +29,7 @@ input, select, textarea, button {
   font-size: 0.95rem;
 }
 
-/* Layout com scroll independente */
+/* Layout com scroll independente (sidebar x conteúdo) */
 .app-shell {
   display: flex;
   height: 100vh;
