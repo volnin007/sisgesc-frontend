@@ -1,116 +1,66 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+body { font-family: Inter, system-ui, sans-serif; }
 
-:root {
-  --text: #0f172a;
-  --text-muted: #334155;
+/* Print helpers */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  aside, nav, .sidebar {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  * {
+    color: black !important;
+    background: white !important;
+  }
 }
 
-html,
-body {
-  height: 100%;
+/* Garante texto legível em cabeçalhos de documentos (fundo claro) */
+.doc-header {
+  color: #111827 !important;
+}
+.doc-header p, .doc-header h1, .doc-header h2 {
+  color: #111827 !important;
 }
 
-body {
-  font-family: Inter, system-ui, -apple-system, sans-serif;
-  color: var(--text);
-  font-size: 15.5px;
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-}
-
-h1, h2, h3, h4 {
-  color: #0b1220;
-  letter-spacing: -0.01em;
-}
-
-input, select, textarea, button {
-  font-size: 0.95rem;
-}
-
-.app-shell {
-  display: flex;
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
-}
-
-.app-sidebar {
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  flex-shrink: 0;
-  overscroll-behavior: contain;
-  color: #ffffff !important;
-}
-
-/* Toda escrita sobre fundo escuro = branco */
-.app-sidebar,
-.app-sidebar a,
-.app-sidebar button,
-.app-sidebar p,
-.app-sidebar span,
-.app-sidebar h1,
-.app-sidebar h2,
-.app-sidebar h3 {
-  color: #ffffff;
-}
-
-.app-sidebar .text-gray-300,
-.app-sidebar .text-gray-400,
-.app-sidebar .text-gray-200 {
-  color: #f1f5f9 !important;
-}
-
-.app-sidebar .text-cyan-200,
-.app-sidebar .text-cyan-300 {
-  color: #a5f3fc !important;
-}
-
-.app-main {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.app-main-scroll {
-  flex: 1;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.doc-header-dark,
-.ficha-header-dark {
-  background: #0a0f1a;
-  color: #ffffff !important;
-}
+/* ===== TEXTO BRANCO EM FUNDOS ESCUROS ===== */
+.bg-\[\#0a0f1a\] ,
+.bg-\[\#0a0f1a\] *,
+.bg-gray-900 ,
+.bg-gray-900 *,
+.bg-slate-900 ,
+.bg-slate-900 *,
+.bg-zinc-900 ,
+.bg-zinc-900 *,
+.bg-black ,
+.bg-black *,
+.doc-header-dark ,
 .doc-header-dark *,
+.ficha-header-dark ,
 .ficha-header-dark * {
   color: #ffffff !important;
 }
 
-@media print {
-  html, body {
-    height: auto;
-    overflow: visible !important;
-  }
-  .no-print {
-    display: none !important;
-  }
-  .app-shell,
-  .app-main,
-  .app-main-scroll {
-    height: auto !important;
-    overflow: visible !important;
-    display: block !important;
-  }
-  body {
-    background: white !important;
-    font-size: 12pt;
-    color: #000 !important;
-  }
+.bg-\[\#0a0f1a\] .text-cyan-300,
+.bg-\[\#0a0f1a\] .text-cyan-200,
+.bg-\[\#0a0f1a\] .text-green-400,
+.bg-\[\#0a0f1a\] .text-red-300,
+.bg-\[\#0a0f1a\] .text-yellow-300 {
+  color: inherit !important;
+}
+
+footer.bg-\[\#0a0f1a\] p,
+footer.bg-\[\#0a0f1a\] span,
+footer.bg-\[\#0a0f1a\] a {
+  color: #ffffff !important;
+}
+footer.bg-\[\#0a0f1a\] .text-cyan-300\/60,
+footer.bg-\[\#0a0f1a\] .text-gray-400 {
+  color: rgba(165, 243, 252, 0.7) !important;
 }
