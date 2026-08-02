@@ -2,7 +2,7 @@
 import { FormEvent, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Camera, ChevronDown, FileText, Save, X } from 'lucide-react';
+import { Camera, CheckCircle2, ChevronDown, FileText, Save, Upload, X } from 'lucide-react';
 
 type Responsavel = {
   nome: string;
@@ -11,6 +11,15 @@ type Responsavel = {
   telefone: string;
   parentesco: 'MAE' | 'PAI' | 'RESPONSAVEL_LEGAL' | 'OUTRO';
   principal?: boolean;
+};
+
+type DocSlot = {
+  tipo: 'CERTIDAO' | 'TIPAGEM' | 'HISTORICO' | 'UNIDADE_CONSUMIDORA' | 'COMPROVANTE_ENDERECO';
+  label: string;
+  hint: string;
+  nomeArquivo?: string;
+  mimeType?: string;
+  conteudo?: string;
 };
 
 const RACAS = ['BRANCA', 'PRETA', 'PARDA', 'AMARELA', 'INDIGENA', 'NAO_DECLARADA'];
@@ -23,6 +32,23 @@ const emptyResp = (parentesco: Responsavel['parentesco']): Responsavel => ({
   parentesco,
   principal: parentesco === 'MAE' || parentesco === 'RESPONSAVEL_LEGAL',
 });
+
+const DOC_SLOTS_INIT: DocSlot[] = [
+  { tipo: 'CERTIDAO', label: 'Cópia da certidão de nascimento', hint: 'PDF ou imagem · recomendado' },
+  { tipo: 'TIPAGEM', label: 'Tipagem sanguínea / fator RH', hint: 'Lei 4.067/2019 · opcional' },
+  { tipo: 'HISTORICO', label: 'Histórico escolar', hint: 'Transferência / origem · opcional' },
+  { tipo: 'COMPROVANTE_ENDERECO', label: 'Comprovante de endereço', hint: 'Conta de luz, água ou declaração' },
+  { tipo: 'UNIDADE_CONSUMIDORA', label: 'Unidade consumidora (energia)', hint: 'Obrigatório se transporte escolar rural' },
+];
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Falha ao ler arquivo'));
+    reader.readAsDataURL(file);
+  });
+}
 
 async function processarFoto3x4(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -102,6 +128,7 @@ export default function MatriculaPage() {
   const [pai, setPai] = useState(emptyResp('PAI'));
   const [respLegal, setRespLegal] = useState(emptyResp('RESPONSAVEL_LEGAL'));
   const [turmaId, setTurmaId] = useState('');
+  const [docs, setDocs] = useState<DocSlot[]>(DOC_SLOTS_INIT);
 
   useEffect(() => {
     api.get('/turmas').then((r) => setTurmas(r.data)).catch(() => {});
@@ -114,6 +141,35 @@ export default function MatriculaPage() {
     } catch {
       setError('Não foi possível processar a foto 3x4.');
     }
+  }
+
+  async function onDoc(tipo: DocSlot['tipo'], file?: File | null) {
+    if (!file) return;
+    if (file.size > 900_000) {
+      setError(`Arquivo "${file.name}" muito grande. Máximo ~900KB.`);
+      return;
+    }
+    try {
+      const conteudo = await fileToBase64(file);
+      setDocs((prev) =>
+        prev.map((d) =>
+          d.tipo === tipo
+            ? { ...d, conteudo, nomeArquivo: file.name, mimeType: file.type || 'application/octet-stream' }
+            : d,
+        ),
+      );
+      setError('');
+    } catch {
+      setError('Falha ao ler o documento.');
+    }
+  }
+
+  function clearDoc(tipo: DocSlot['tipo']) {
+    setDocs((prev) =>
+      prev.map((d) =>
+        d.tipo === tipo ? { ...d, conteudo: undefined, nomeArquivo: undefined, mimeType: undefined } : d,
+      ),
+    );
   }
 
   async function onSubmit(e: FormEvent) {
@@ -166,6 +222,19 @@ export default function MatriculaPage() {
         responsaveis,
       });
 
+      const documentos = docs
+        .filter((d) => d.conteudo)
+        .map((d) => ({
+          tipo: d.tipo,
+          nomeArquivo: d.nomeArquivo,
+          mimeType: d.mimeType,
+          conteudo: d.conteudo!,
+        }));
+
+      if (documentos.length) {
+        await api.post(`/documentos/aluno/${aluno.id}/lote`, { documentos });
+      }
+
       if (turmaId) {
         await api.post('/matriculas', {
           alunoId: aluno.id,
@@ -174,12 +243,11 @@ export default function MatriculaPage() {
         });
       }
 
+      const nDocs = documentos.length;
       setMessage(
-        turmaId
-          ? `Matrícula concluída: ${aluno.nomeCompleto}`
-          : `Aluno cadastrado: ${aluno.nomeCompleto}`,
+        `Cadastro salvo: ${aluno.nomeCompleto}${nDocs ? ` · ${nDocs} documento(s)` : ''}${turmaId ? ' · matriculado' : ''}`,
       );
-      setTimeout(() => router.push('/alunos'), 1200);
+      setTimeout(() => router.push('/alunos'), 1400);
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Erro ao salvar cadastro');
     } finally {
@@ -192,38 +260,25 @@ export default function MatriculaPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-slate-900">Ficha de matrícula</h1>
-          <p className="text-sm text-slate-500">
-            Padrão oficial · Escola Municipal Dimas Nasser · erp-escolar-publico
-          </p>
+          <p className="text-sm text-slate-500">Documentos digitais · foto 3×4 · Escola Municipal Dimas Nasser</p>
         </div>
-        <button
-          type="button"
-          onClick={() => router.push('/alunos')}
-          className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold text-slate-600"
-        >
+        <button type="button" onClick={() => router.push('/alunos')} className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold text-slate-600">
           <X size={16} /> Lista de alunos
         </button>
       </div>
 
-      {message && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>
-      )}
+      {message && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>}
 
       <form onSubmit={onSubmit} className="rounded-2xl border border-slate-300 bg-white shadow-sm overflow-hidden">
         <div className="bg-gradient-to-r from-slate-900 via-[#12325a] to-cyan-800 text-white px-5 py-4">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100 font-semibold">
-            Ficha de matrícula / cadastro do aluno
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100 font-semibold">Ficha de matrícula / cadastro do aluno</p>
           <h2 className="text-lg font-bold">Escola Municipal Dimas Nasser</h2>
-          <p className="text-xs text-blue-100">Campos com * são obrigatórios. Demais podem ser complementados depois.</p>
+          <p className="text-xs text-blue-100">Campos com * são obrigatórios. Anexos podem ser enviados agora ou depois.</p>
         </div>
 
         <div className="p-5 space-y-6">
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-          )}
+          {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-          {/* Foto + obrigatórios */}
           <section className="grid gap-5 lg:grid-cols-[180px_1fr]">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 flex flex-col items-center">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Foto 3×4</p>
@@ -241,16 +296,13 @@ export default function MatriculaPage() {
               <label className="mt-3 w-full">
                 <input type="file" accept="image/*" className="block w-full text-[11px]" onChange={(e) => onFoto(e.target.files?.[0])} />
               </label>
-              <p className="mt-2 text-[10px] text-slate-500 text-center">Recorte automático 3×4 · recomendado na matrícula</p>
             </div>
 
             <div className="space-y-3">
-              <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800 border-b pb-2">
-                1. Dados obrigatórios do aluno *
-              </h3>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800 border-b pb-2">1. Dados obrigatórios *</h3>
               <div className="grid sm:grid-cols-2 gap-3">
                 <Field label="Nome completo *" className="sm:col-span-2">
-                  <input required value={nome} onChange={(e) => setNome(e.target.value)} className="field-input" placeholder="Nome completo do aluno" />
+                  <input required value={nome} onChange={(e) => setNome(e.target.value)} className="field-input" />
                 </Field>
                 <Field label="Data de nascimento *">
                   <input required type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} className="field-input" />
@@ -273,9 +325,9 @@ export default function MatriculaPage() {
                   <input required value={nacionalidade} onChange={(e) => setNacionalidade(e.target.value)} className="field-input" />
                 </Field>
                 <Field label="Cartão SUS *">
-                  <input required value={sus} onChange={(e) => setSus(e.target.value)} className="field-input" placeholder="Número do cartão SUS" />
+                  <input required value={sus} onChange={(e) => setSus(e.target.value)} className="field-input" />
                 </Field>
-                <Field label="Certidão de nascimento *">
+                <Field label="Certidão de nascimento (nº) *">
                   <input required value={certidaoNascimento} onChange={(e) => setCertidaoNascimento(e.target.value)} className="field-input" placeholder="Nº / livro / folha / cartório" />
                 </Field>
                 <Field label="Moradia *">
@@ -285,64 +337,87 @@ export default function MatriculaPage() {
                   </select>
                 </Field>
                 <Field label="Telefone do responsável *">
-                  <input required value={telefoneResponsavel} onChange={(e) => setTelefoneResponsavel(e.target.value)} className="field-input" placeholder="(00) 00000-0000" />
+                  <input required value={telefoneResponsavel} onChange={(e) => setTelefoneResponsavel(e.target.value)} className="field-input" />
                 </Field>
               </div>
             </div>
           </section>
 
-          {/* Endereço */}
           <section className="space-y-3">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800 border-b pb-2">2. Endereço atualizado</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800 border-b pb-2">2. Endereço</h3>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <Field label="Rua / Avenida" className="lg:col-span-2">
-                <input value={logradouro} onChange={(e) => setLogradouro(e.target.value)} className="field-input" />
-              </Field>
-              <Field label="Número">
-                <input value={numero} onChange={(e) => setNumero(e.target.value)} className="field-input" />
-              </Field>
-              <Field label="Bairro">
-                <input value={bairro} onChange={(e) => setBairro(e.target.value)} className="field-input" />
-              </Field>
-              <Field label="Cidade / Município">
-                <input value={cidade} onChange={(e) => setCidade(e.target.value)} className="field-input" />
-              </Field>
-              <Field label="UF">
-                <input value={estado} onChange={(e) => setEstado(e.target.value)} className="field-input" maxLength={2} />
-              </Field>
-              <Field label="CEP">
-                <input value={cep} onChange={(e) => setCep(e.target.value)} className="field-input" />
-              </Field>
+              <Field label="Rua / Avenida" className="lg:col-span-2"><input value={logradouro} onChange={(e) => setLogradouro(e.target.value)} className="field-input" /></Field>
+              <Field label="Número"><input value={numero} onChange={(e) => setNumero(e.target.value)} className="field-input" /></Field>
+              <Field label="Bairro"><input value={bairro} onChange={(e) => setBairro(e.target.value)} className="field-input" /></Field>
+              <Field label="Cidade"><input value={cidade} onChange={(e) => setCidade(e.target.value)} className="field-input" /></Field>
+              <Field label="UF"><input value={estado} onChange={(e) => setEstado(e.target.value)} className="field-input" maxLength={2} /></Field>
+              <Field label="CEP"><input value={cep} onChange={(e) => setCep(e.target.value)} className="field-input" /></Field>
             </div>
           </section>
 
-          {/* Opcionais */}
+          {/* Documentos */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800 border-b pb-2 flex items-center gap-2">
+              <Upload size={16} /> 3. Anexos digitais (PDF ou imagem · máx. ~900KB cada)
+            </h3>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {docs
+                .filter((d) => d.tipo !== 'UNIDADE_CONSUMIDORA' || transporteEscolar || moradia === 'RURAL')
+                .map((d) => (
+                  <div key={d.tipo} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">{d.label}</p>
+                        <p className="text-[11px] text-slate-500">{d.hint}</p>
+                      </div>
+                      {d.conteudo && <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />}
+                    </div>
+                    {d.nomeArquivo ? (
+                      <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                        <span className="truncate text-slate-600 font-medium">{d.nomeArquivo}</span>
+                        <button type="button" onClick={() => clearDoc(d.tipo)} className="text-red-600 hover:underline shrink-0">
+                          Remover
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="file"
+                        accept="image/*,.pdf,application/pdf"
+                        className="mt-2 block w-full text-[11px]"
+                        onChange={(e) => onDoc(d.tipo, e.target.files?.[0])}
+                      />
+                    )}
+                  </div>
+                ))}
+            </div>
+          </section>
+
           <section className="rounded-2xl border border-slate-200 overflow-hidden">
             <button type="button" onClick={() => setOpenOptional((v) => !v)} className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 text-left">
-              <span className="text-sm font-bold uppercase tracking-wide text-slate-800">3. Dados opcionais (podem ser inseridos depois)</span>
+              <span className="text-sm font-bold uppercase tracking-wide text-slate-800">4. Dados complementares e responsáveis</span>
               <ChevronDown className={`transition-transform ${openOptional ? 'rotate-180' : ''}`} size={18} />
             </button>
             {openOptional && (
               <div className="p-4 space-y-5">
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <Field label="CPF do aluno"><input value={cpf} onChange={(e) => setCpf(e.target.value)} className="field-input" /></Field>
+                  <Field label="CPF"><input value={cpf} onChange={(e) => setCpf(e.target.value)} className="field-input" /></Field>
                   <Field label="NIS"><input value={nis} onChange={(e) => setNis(e.target.value)} className="field-input" /></Field>
                   <Field label="Naturalidade"><input value={naturalidade} onChange={(e) => setNaturalidade(e.target.value)} className="field-input" /></Field>
-                  <Field label="Tipo sanguíneo"><input value={tipoSanguineo} onChange={(e) => setTipoSanguineo(e.target.value)} className="field-input" placeholder="A, B, AB, O" /></Field>
-                  <Field label="Fator RH (Lei 4.067/2019)">
+                  <Field label="Tipo sanguíneo"><input value={tipoSanguineo} onChange={(e) => setTipoSanguineo(e.target.value)} className="field-input" /></Field>
+                  <Field label="Fator RH">
                     <select value={fatorRh} onChange={(e) => setFatorRh(e.target.value)} className="field-input">
                       <option value="">Não informado</option>
                       <option value="POSITIVO">Positivo (+)</option>
                       <option value="NEGATIVO">Negativo (-)</option>
                     </select>
                   </Field>
-                  <Field label="Histórico escolar (origem)"><input value={historicoEscolarOrigem} onChange={(e) => setHistoricoEscolarOrigem(e.target.value)} className="field-input" /></Field>
+                  <Field label="Histórico (escola de origem)"><input value={historicoEscolarOrigem} onChange={(e) => setHistoricoEscolarOrigem(e.target.value)} className="field-input" /></Field>
                 </div>
 
                 <div className="grid sm:grid-cols-3 gap-3">
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={transporteEscolar} onChange={(e) => setTransporteEscolar(e.target.checked)} /> Transporte escolar</label>
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={bolsaFamilia} onChange={(e) => setBolsaFamilia(e.target.checked)} /> Bolsa Família / CadÚnico</label>
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={deficiencia} onChange={(e) => setDeficiencia(e.target.checked)} /> Pessoa com deficiência</label>
+                  <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={transporteEscolar} onChange={(e) => setTransporteEscolar(e.target.checked)} /> Transporte escolar</label>
+                  <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={bolsaFamilia} onChange={(e) => setBolsaFamilia(e.target.checked)} /> Bolsa Família</label>
+                  <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={deficiencia} onChange={(e) => setDeficiencia(e.target.checked)} /> PcD</label>
                 </div>
 
                 {transporteEscolar && (
@@ -358,7 +433,7 @@ export default function MatriculaPage() {
 
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold uppercase tracking-wide text-slate-600 flex items-center gap-2">
-                    <FileText size={14} /> Nome e documentos dos responsáveis
+                    <FileText size={14} /> Responsáveis
                   </h4>
                   <div className="grid lg:grid-cols-3 gap-3">
                     <RespCard title="Mãe" data={mae} onChange={(k, v) => setMae((p) => ({ ...p, [k]: v }))} />
@@ -369,10 +444,10 @@ export default function MatriculaPage() {
 
                 <Field label="Matricular na turma (opcional)">
                   <select value={turmaId} onChange={(e) => setTurmaId(e.target.value)} className="field-input">
-                    <option value="">Somente cadastrar (sem turma)</option>
+                    <option value="">Somente cadastrar</option>
                     {turmas.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.nome} · {t.turno} · vagas {t.vagas ?? t.capacidadeMax - (t.ocupacao || 0)}
+                        {t.nome} · {t.turno}
                       </option>
                     ))}
                   </select>
@@ -382,12 +457,12 @@ export default function MatriculaPage() {
           </section>
 
           <div className="flex flex-wrap justify-end gap-2 pt-2 border-t">
-            <button type="button" onClick={() => router.push('/alunos')} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">
+            <button type="button" onClick={() => router.push('/alunos')} className="rounded-xl border px-4 py-2.5 text-sm font-semibold text-slate-700">
               Cancelar
             </button>
-            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60">
+            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
               <Save size={16} />
-              {saving ? 'Salvando...' : 'Salvar cadastro do aluno'}
+              {saving ? 'Salvando...' : 'Salvar cadastro + documentos'}
             </button>
           </div>
         </div>
