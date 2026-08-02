@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   CalendarDays,
   BarChart3,
+  MessageCircle,
 } from 'lucide-react';
 import { useSidebar } from '@/components/SidebarContext';
 import { LOGO_ESCOLA_SM, LOGO_VOLNIN_SM } from '@/lib/logos';
@@ -33,6 +34,7 @@ const menu = [
   { href: '/ocorrencias', label: 'Ocorrências', icon: AlertTriangle },
   { href: '/calendario', label: 'Calendário', icon: CalendarDays },
   { href: '/censo', label: 'Censo Escolar', icon: BarChart3 },
+  { href: '/avisos', label: 'Avisos WhatsApp', icon: MessageCircle },
   { href: '/boletim/1', label: 'Boletins', icon: FileText },
   { href: '/usuarios', label: 'Usuários', icon: Shield },
   { href: '/ia-duvidas', label: 'IA Dúvidas', icon: Bot },
