@@ -1,41 +1,136 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import Link from 'next/link';
+import { Users, GraduationCap, AlertTriangle, BookOpen } from 'lucide-react';
 
 export default function Dashboard() {
   const [turmas, setTurmas] = useState<any[]>([]);
+  const [infreq, setInfreq] = useState<any[]>([]);
   const [stats, setStats] = useState({ alunos: 0, turmas: 0, infantil: 0, fund1: 0, fund2: 0 });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/turmas').then(r => {
-      setTurmas(r.data);
-      const alunos = r.data.reduce((acc: number, t: any) => acc + (t.ocupacao || 0), 0);
+    Promise.all([
+      api.get('/turmas').catch(() => ({ data: [] })),
+      api.get('/frequencias/relatorio/infrequencia?percentualMax=75').catch(() => ({ data: [] })),
+    ]).then(([tRes, iRes]) => {
+      const t = tRes.data || [];
+      setTurmas(t);
+      setInfreq(Array.isArray(iRes.data) ? iRes.data.slice(0, 5) : []);
       setStats({
-        alunos,
-        turmas: r.data.length,
-        infantil: r.data.filter((t: any) => t.etapa === 'INFANTIL').length,
-        fund1: r.data.filter((t: any) => t.etapa === 'FUND1').length,
-        fund2: r.data.filter((t: any) => t.etapa === 'FUND2').length,
+        alunos: t.reduce((acc: number, x: any) => acc + (x.ocupacao || 0), 0),
+        turmas: t.length,
+        infantil: t.filter((x: any) => x.etapa === 'INFANTIL').length,
+        fund1: t.filter((x: any) => x.etapa === 'FUND1').length,
+        fund2: t.filter((x: any) => x.etapa === 'FUND2').length,
       });
-    }).catch(() => {});
+    }).finally(() => setLoading(false));
   }, []);
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard - Escola Municipal Dimas Nasser</h1>
-      <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl shadow-sm border"><p className="text-sm text-gray-500">Total Alunos</p><p className="text-3xl font-bold">{stats.alunos}</p></div>
-        <div className="bg-white p-5 rounded-xl shadow-sm border"><p className="text-sm text-gray-500">Turmas</p><p className="text-3xl font-bold">{stats.turmas}</p><p className="text-xs mt-1">{stats.infantil} Infantil | {stats.fund1} Fund I | {stats.fund2} Fund II</p></div>
-        <div className="bg-white p-5 rounded-xl shadow-sm border"><p className="text-sm text-gray-500">Frequência Média</p><p className="text-3xl font-bold text-green-600">—</p></div>
-        <div className="bg-white p-5 rounded-xl shadow-sm border"><p className="text-sm text-gray-500">Alertas</p><p className="text-sm mt-1">• Busca Ativa<br/>• Censo</p></div>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-sm text-gray-500">Escola Municipal Dimas Nasser · visão geral</p>
       </div>
-      <div className="bg-white rounded-xl shadow-sm border p-6">
-        <h3 className="font-semibold mb-4">Turmas - Pré-Escola ao 9º Ano</h3>
-        <div className="grid grid-cols-3 gap-3">
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2 text-gray-500 text-xs font-medium mb-2">
+            <Users size={14} /> Matrículas ativas
+          </div>
+          <p className="text-3xl font-black text-gray-900">{loading ? '—' : stats.alunos}</p>
+        </div>
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2 text-gray-500 text-xs font-medium mb-2">
+            <GraduationCap size={14} /> Turmas
+          </div>
+          <p className="text-3xl font-black text-gray-900">{loading ? '—' : stats.turmas}</p>
+          <p className="text-[11px] text-gray-400 mt-1">
+            {stats.infantil} Inf · {stats.fund1} Fund I · {stats.fund2} Fund II
+          </p>
+        </div>
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2 text-gray-500 text-xs font-medium mb-2">
+            <AlertTriangle size={14} /> Busca Ativa
+          </div>
+          <p className="text-3xl font-black text-amber-600">{loading ? '—' : infreq.length}</p>
+          <p className="text-[11px] text-gray-400 mt-1">alunos &lt; 75% frequência</p>
+        </div>
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2 text-gray-500 text-xs font-medium mb-2">
+            <BookOpen size={14} /> Atalhos
+          </div>
+          <div className="flex flex-col gap-1 mt-1">
+            <Link href="/diario" className="text-xs text-cyan-700 hover:underline">
+              Diário de classe
+            </Link>
+            <Link href="/ia-duvidas" className="text-xs text-cyan-700 hover:underline">
+              IA Dúvidas
+            </Link>
+            <Link href="/boletim/3" className="text-xs text-cyan-700 hover:underline">
+              Consultar boletim
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {infreq.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+          <h3 className="font-semibold text-amber-900 text-sm flex items-center gap-2 mb-3">
+            <AlertTriangle size={16} /> Alertas de infrequência (Busca Ativa)
+          </h3>
+          <div className="space-y-2">
+            {infreq.map((r: any) => (
+              <div key={r.matriculaId} className="flex justify-between text-sm bg-white/70 rounded-lg px-3 py-2">
+                <span className="font-medium text-gray-800">{r.aluno}</span>
+                <span className="text-amber-700 font-bold">{r.percentual}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h3 className="font-semibold mb-4">Turmas · Pré-Escola ao 9º Ano</h3>
+        {loading && <p className="text-sm text-gray-400">Carregando...</p>}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {turmas.map((t: any) => (
-            <div key={t.id} className="border rounded-lg p-4 hover:shadow-md">
-              <div className="flex justify-between"><span className="font-bold">{t.nome}</span><span className={`text-xs px-2 py-1 rounded ${t.etapa === 'INFANTIL' ? 'bg-purple-100 text-purple-700' : t.etapa === 'FUND1' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{t.etapa}</span></div>
-              <p className="text-sm text-gray-500 mt-1">{t.turno} - {t.anoSerie} - {t.ocupacao || 0}/{t.capacidadeMax} alunos</p>
+            <div key={t.id} className="border rounded-xl p-4 hover:shadow-md transition bg-gray-50/50">
+              <div className="flex justify-between items-start gap-2">
+                <span className="font-bold text-gray-900">{t.nome}</span>
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                    t.etapa === 'INFANTIL'
+                      ? 'bg-purple-100 text-purple-700'
+                      : t.etapa === 'FUND1'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-orange-100 text-orange-700'
+                  }`}
+                >
+                  {t.etapa}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {t.turno} · {t.anoSerie}
+              </p>
+              <div className="mt-3">
+                <div className="flex justify-between text-[11px] text-gray-500 mb-1">
+                  <span>
+                    {t.ocupacao || 0}/{t.capacidadeMax} alunos
+                  </span>
+                  <span>{t.vagas ?? t.capacidadeMax - (t.ocupacao || 0)} vagas</span>
+                </div>
+                <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-cyan-500 to-green-500 h-1.5 rounded-full"
+                    style={{
+                      width: `${Math.min(100, ((t.ocupacao || 0) / (t.capacidadeMax || 1)) * 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           ))}
         </div>
