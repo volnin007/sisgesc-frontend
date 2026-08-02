@@ -20,7 +20,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { useSidebar } from '@/components/SidebarContext';
-import { LOGO_ESCOLA, LOGO_VOLNIN } from '@/lib/logos';
+import { LOGO_ESCOLA_SM, LOGO_VOLNIN_SM } from '@/lib/logos';
 
 const menu = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -53,54 +53,51 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`${
-        collapsed ? 'w-[72px]' : 'w-64'
-      } bg-[#0a0f1a] text-white h-screen max-h-screen sticky top-0 self-start p-3 flex flex-col border-r border-cyan-500/10 shrink-0 hidden md:flex transition-all duration-200 overflow-hidden`}
+      className={`app-sidebar ${
+        collapsed ? 'w-[76px]' : 'w-64'
+      } bg-[#0a0f1a] text-white p-3 flex flex-col border-r border-cyan-500/10 hidden md:flex transition-all duration-200`}
     >
-      <div className={`mb-3 flex ${collapsed ? 'flex-col items-center gap-2' : 'items-start justify-between'} gap-2 shrink-0`}>
-        <div className="flex flex-col items-center w-full">
-          <div className="flex items-center gap-2">
-            <img
-              src={LOGO_VOLNIN}
-              alt="Volnin Tech Hacker"
-              className="h-10 w-10 object-contain shrink-0"
-            />
-            {!collapsed && (
-              <div>
-                <p className="text-sm font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-green-400 leading-tight">
-                  VOLNIN
-                </p>
-                <p className="text-[8px] font-bold tracking-[0.25em] text-cyan-300/70">TECH HACKER</p>
-              </div>
-            )}
-          </div>
+      <div className={`mb-4 flex ${collapsed ? 'flex-col items-center gap-2' : 'items-start justify-between'} gap-2`}>
+        <div className="flex flex-col items-center w-full gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={LOGO_VOLNIN_SM}
+            alt="Volnin Tech Hacker"
+            className={`${collapsed ? 'h-10 w-10' : 'h-12 w-12'} object-contain`}
+          />
           {!collapsed && (
-            <div className="mt-3 w-full rounded-xl border border-cyan-500/20 bg-white/5 p-2.5 text-center">
-              <img
-                src={LOGO_ESCOLA}
-                alt="Escola Municipal Dimas Nasser"
-                className="mx-auto mb-1 h-14 w-14 object-contain rounded-full bg-white"
-              />
-              <p className="text-xs font-bold text-white leading-tight">SISGESC</p>
-              <p className="text-[10px] text-cyan-100/80 leading-snug">Escola Municipal Dimas Nasser</p>
-              <p className="text-[9px] text-cyan-200/60">Pré ao 9º · Gestão 2025/2028</p>
+            <div className="text-center">
+              <p className="text-sm font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-green-400 leading-tight">
+                VOLNIN
+              </p>
+              <p className="text-[8px] font-bold tracking-[0.25em] text-cyan-300/70">TECH HACKER</p>
             </div>
           )}
-          {collapsed && (
-            <img src={LOGO_ESCOLA} alt="Escola" className="mt-2 h-9 w-9 object-contain rounded-full bg-white" />
+          {!collapsed && (
+            <div className="w-full rounded-xl border border-cyan-500/20 bg-white/5 p-2.5 text-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={LOGO_ESCOLA_SM}
+                alt="Dimas Nasser"
+                className="mx-auto mb-1 h-14 w-14 object-contain"
+              />
+              <p className="text-xs font-bold text-white leading-tight">SISGESC</p>
+              <p className="text-[10px] text-cyan-100/70 leading-snug">Escola Municipal Dimas Nasser</p>
+              <p className="text-[9px] text-cyan-200/50">Pré ao 9º Ano</p>
+            </div>
           )}
         </div>
         <button
           type="button"
           onClick={toggle}
-          className="p-1.5 rounded-lg hover:bg-white/10 text-cyan-300/80 self-end shrink-0"
+          className="p-1.5 rounded-lg hover:bg-white/10 text-cyan-300/80 self-end"
           title={collapsed ? 'Expandir menu' : 'Recolher menu'}
         >
           {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
       </div>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto min-h-0 pr-0.5">
+      <nav className="flex-1 space-y-0.5">
         {menu.map((m) => {
           const base = m.href === '/' ? '/' : '/' + m.href.split('/').filter(Boolean)[0];
           const isActive =
@@ -123,7 +120,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="mt-3 pt-3 border-t border-white/10 space-y-2 shrink-0">
+      <div className="mt-4 pt-3 border-t border-white/10 space-y-2 shrink-0">
         <button
           onClick={sair}
           className="w-full flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-red-400 py-2 rounded-lg hover:bg-white/5 transition"

@@ -7,12 +7,18 @@
   --text-muted: #334155;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 body {
   font-family: Inter, system-ui, -apple-system, sans-serif;
   color: var(--text);
   font-size: 15.5px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  overflow: hidden;
 }
 
 h1, h2, h3, h4 {
@@ -20,28 +26,59 @@ h1, h2, h3, h4 {
   letter-spacing: -0.01em;
 }
 
-p, label, td, th, li, span {
-  color: inherit;
-}
-
-/* Tipografia mais legível em formulários */
 input, select, textarea, button {
   font-size: 0.95rem;
 }
 
+/* Layout com scroll independente */
+.app-shell {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-sidebar {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-shrink: 0;
+  overscroll-behavior: contain;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-main-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 @media print {
+  html, body {
+    height: auto;
+    overflow: visible !important;
+  }
   .no-print {
     display: none !important;
   }
-  .print-only {
+  .app-shell,
+  .app-main,
+  .app-main-scroll {
+    height: auto !important;
+    overflow: visible !important;
     display: block !important;
   }
   body {
     background: white !important;
     font-size: 12pt;
     color: #000 !important;
-  }
-  main {
-    padding: 0 !important;
   }
 }

@@ -3,22 +3,10 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { BarChart3, Download, Printer } from 'lucide-react';
 
-function toCsv(rows: (string | number)[][]) {
-  return rows
-    .map((r) =>
-      r
-        .map((c) => {
-          const s = String(c ?? '');
-          if (/[",;\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-          return s;
-        })
-        .join(';'),
-    )
-    .join('\n');
-}
-
-function downloadCsv(filename: string, content: string) {
-  const blob = new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8;' });
+function downloadCsv(filename: string, rows: string[][]) {
+  const esc = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const body = rows.map((r) => r.map(esc).join(';')).join('\n');
+  const blob = new Blob(['\uFEFF' + body], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -35,48 +23,46 @@ export default function CensoPage() {
     api
       .get('/censo/resumo')
       .then((r) => setData(r.data))
-      .catch(() => setErr('Não foi possível carregar o resumo do censo.'));
+      .catch(() => setErr('Não foi possível carregar o resumo do censo. Faça login e tente de novo.'));
   }, []);
 
   function exportarCsv() {
     if (!data) return;
     const t = data.totais || {};
-    const rows: (string | number)[][] = [
-      ['SISGESC - Censo Escolar'],
-      [data.escola || 'Escola Municipal Dimas Nasser'],
-      ['Gerado em', new Date(data.geradoEm || Date.now()).toLocaleString('pt-BR')],
+    const rows: string[][] = [
+      ['INDICADOR', 'VALOR'],
+      ['Escola', data.escola || ''],
+      ['Gerado em', data.geradoEm || ''],
+      ['Alunos cadastrados', String(t.alunosCadastrados ?? 0)],
+      ['Matrículas ativas', String(t.matriculasAtivas ?? 0)],
+      ['Turmas', String(t.turmas ?? 0)],
+      ['Professores', String(t.professores ?? 0)],
+      ['PcD', String(t.pcd ?? 0)],
+      ['Transporte escolar', String(t.transporteEscolar ?? 0)],
+      ['Bolsa Família', String(t.bolsaFamilia ?? 0)],
       [],
-      ['Indicador', 'Valor'],
-      ['Alunos cadastrados', t.alunosCadastrados ?? 0],
-      ['Matrículas ativas', t.matriculasAtivas ?? 0],
-      ['Turmas', t.turmas ?? 0],
-      ['Professores', t.professores ?? 0],
-      ['PcD', t.pcd ?? 0],
-      ['Transporte escolar', t.transporteEscolar ?? 0],
-      ['Bolsa Família', t.bolsaFamilia ?? 0],
+      ['POR SEXO', 'QUANTIDADE'],
+      ...Object.entries(data.porSexo || {}).map(([k, v]) => [k, String(v)]),
       [],
-      ['Sexo', 'Quantidade'],
-      ...Object.entries(data.porSexo || {}),
+      ['POR RAÇA/COR', 'QUANTIDADE'],
+      ...Object.entries(data.porRacaCor || {}).map(([k, v]) => [k, String(v)]),
       [],
-      ['Raça/cor', 'Quantidade'],
-      ...Object.entries(data.porRacaCor || {}),
+      ['POR ZONA', 'QUANTIDADE'],
+      ...Object.entries(data.porZona || {}).map(([k, v]) => [k, String(v)]),
       [],
-      ['Zona', 'Quantidade'],
-      ...Object.entries(data.porZona || {}),
+      ['POR ETAPA', 'QUANTIDADE'],
+      ...Object.entries(data.porEtapa || {}).map(([k, v]) => [k, String(v)]),
       [],
-      ['Etapa', 'Quantidade'],
-      ...Object.entries(data.porEtapa || {}),
-      [],
-      ['Turma', 'Etapa', 'Turno', 'Matriculados', 'Capacidade'],
+      ['TURMA', 'ETAPA', 'TURNO', 'MATRICULADOS', 'CAPACIDADE'],
       ...(data.turmas || []).map((x: any) => [
         x.nome,
         x.etapa,
         x.turno,
-        x.matriculados,
-        x.capacidade,
+        String(x.matriculados),
+        String(x.capacidade),
       ]),
     ];
-    downloadCsv(`censo-dimas-nasser-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
+    downloadCsv(`censo-dimas-nasser-${new Date().toISOString().slice(0, 10)}.csv`, rows);
   }
 
   if (err) return <p className="text-red-700 font-medium">{err}</p>;
@@ -94,7 +80,7 @@ export default function CensoPage() {
           <div>
             <h1 className="text-2xl font-black text-slate-900">Censo Escolar</h1>
             <p className="text-sm text-slate-700 font-medium">
-              Painel agregado · {data.escola} · base para Educacenso
+              Painel agregado · {data.escola} · apoio ao Educacenso
             </p>
           </div>
         </div>
@@ -148,21 +134,21 @@ export default function CensoPage() {
             </tr>
           </thead>
           <tbody>
-            {(data.turmas || []).map((row: any) => (
-              <tr key={row.id} className="border-t">
-                <td className="px-4 py-2 font-medium">{row.nome}</td>
-                <td className="px-4 py-2">{row.etapa}</td>
-                <td className="px-4 py-2">{row.turno}</td>
-                <td className="px-4 py-2">{row.matriculados}</td>
-                <td className="px-4 py-2">{row.capacidade}</td>
+            {(data.turmas || []).map((x: any) => (
+              <tr key={x.id} className="border-t">
+                <td className="px-4 py-2 font-medium">{x.nome}</td>
+                <td className="px-4 py-2">{x.etapa}</td>
+                <td className="px-4 py-2">{x.turno}</td>
+                <td className="px-4 py-2">{x.matriculados}</td>
+                <td className="px-4 py-2">{x.capacidade}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <p className="text-xs text-slate-600">
-        Gerado em {new Date(data.geradoEm).toLocaleString('pt-BR')} · CSV com separador ";" e BOM UTF-8 para Excel/Educacenso.
+      <p className="text-xs text-slate-500">
+        Gerado em {new Date(data.geradoEm).toLocaleString('pt-BR')} · CSV com separador “;” compatível com Excel BR.
       </p>
     </div>
   );
@@ -171,7 +157,7 @@ export default function CensoPage() {
 function Card({ title, value }: { title: string; value: number }) {
   return (
     <div className="bg-white rounded-2xl border p-4 shadow-sm">
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-700">{title}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-600">{title}</p>
       <p className="text-3xl font-black text-slate-900 mt-1">{value ?? 0}</p>
     </div>
   );
@@ -182,7 +168,7 @@ function Block({ title, obj }: { title: string; obj: Record<string, number> }) {
   return (
     <div className="bg-white rounded-2xl border p-4 shadow-sm">
       <h3 className="font-bold text-slate-900 mb-3">{title}</h3>
-      {entries.length === 0 && <p className="text-sm text-slate-600">Sem dados</p>}
+      {entries.length === 0 && <p className="text-sm text-slate-500">Sem dados</p>}
       <ul className="space-y-1.5">
         {entries.map(([k, v]) => (
           <li key={k} className="flex justify-between text-sm border-b border-slate-100 pb-1">
