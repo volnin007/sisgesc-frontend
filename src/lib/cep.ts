@@ -10,9 +10,11 @@ export type CepResult = {
   estado: string;
   ibge?: string;
   ddd?: string;
+  /** Origem da consulta: ViaCEP (prioritário) ou BrasilAPI (fallback). */
+  fonte?: 'viacep' | 'brasilapi';
 };
 
-/** Consulta CEP via API SISGESC (proxy ViaCEP). */
+/** Consulta CEP via API SISGESC (ViaCEP + fallback BrasilAPI). */
 export async function consultarCep(cepRaw: string): Promise<CepResult> {
   const digits = onlyDigits(cepRaw);
   if (digits.length !== 8) {
