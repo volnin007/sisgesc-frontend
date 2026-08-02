@@ -1,10 +1,29 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { FormEvent, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Camera, FileText, Save, User } from 'lucide-react';
+import { Camera, ChevronDown, FileText, Save, X } from 'lucide-react';
 
-/** Converte e redimensiona para proporção 3x4 (retrato), JPEG comprimido */
+type Responsavel = {
+  nome: string;
+  rg: string;
+  cpf: string;
+  telefone: string;
+  parentesco: 'MAE' | 'PAI' | 'RESPONSAVEL_LEGAL' | 'OUTRO';
+  principal?: boolean;
+};
+
+const RACAS = ['BRANCA', 'PRETA', 'PARDA', 'AMARELA', 'INDIGENA', 'NAO_DECLARADA'];
+
+const emptyResp = (parentesco: Responsavel['parentesco']): Responsavel => ({
+  nome: '',
+  rg: '',
+  cpf: '',
+  telefone: '',
+  parentesco,
+  principal: parentesco === 'MAE' || parentesco === 'RESPONSAVEL_LEGAL',
+});
+
 async function processarFoto3x4(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -12,14 +31,12 @@ async function processarFoto3x4(file: File): Promise<string> {
       const img = new Image();
       img.onload = () => {
         const targetW = 300;
-        const targetH = 400; // 3x4
+        const targetH = 400;
         const canvas = document.createElement('canvas');
         canvas.width = targetW;
         canvas.height = targetH;
         const ctx = canvas.getContext('2d');
-        if (!ctx) return reject(new Error('Canvas não suportado'));
-
-        // crop central mantendo proporção 3:4
+        if (!ctx) return reject(new Error('Canvas'));
         const srcRatio = img.width / img.height;
         const dstRatio = 3 / 4;
         let sx = 0,
@@ -33,7 +50,7 @@ async function processarFoto3x4(file: File): Promise<string> {
           sh = img.width / dstRatio;
           sy = (img.height - sh) / 2;
         }
-        ctx.fillStyle = '#f3f4f6';
+        ctx.fillStyle = '#f8fafc';
         ctx.fillRect(0, 0, targetW, targetH);
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
         resolve(canvas.toDataURL('image/jpeg', 0.82));
@@ -41,337 +58,385 @@ async function processarFoto3x4(file: File): Promise<string> {
       img.onerror = () => reject(new Error('Imagem inválida'));
       img.src = reader.result as string;
     };
-    reader.onerror = () => reject(new Error('Falha ao ler arquivo'));
+    reader.onerror = () => reject(new Error('Falha ao ler'));
     reader.readAsDataURL(file);
   });
 }
 
-const empty = {
-  nomeCompleto: '',
-  dataNascimento: '',
-  sexo: '',
-  nomeMae: '',
-  cpf: '',
-  nis: '',
-  inepId: '',
-  endereco: '',
-  bairro: '',
-  zona: 'URBANA',
-  telefoneContato: '',
-  alergias: '',
-  usaFralda: false,
-  deficiencia: false,
-  transporteEscolar: false,
-  bolsaFamilia: false,
-  fotoUrl: '',
-  respNome: '',
-  respParentesco: 'MAE',
-  respTelefone: '',
-  respWhatsapp: '',
-  turmaId: '',
-};
-
 export default function MatriculaPage() {
-  const [form, setForm] = useState(empty);
-  const [turmas, setTurmas] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [erro, setErro] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const [turmas, setTurmas] = useState<any[]>([]);
+  const [openOptional, setOpenOptional] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  const [nome, setNome] = useState('');
+  const [dataNascimento, setDataNascimento] = useState('');
+  const [sexo, setSexo] = useState('MASCULINO');
+  const [racaCor, setRacaCor] = useState('PARDA');
+  const [nacionalidade, setNacionalidade] = useState('Brasileira');
+  const [sus, setSus] = useState('');
+  const [moradia, setMoradia] = useState<'URBANA' | 'RURAL'>('URBANA');
+  const [certidaoNascimento, setCertidaoNascimento] = useState('');
+  const [telefoneResponsavel, setTelefoneResponsavel] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [nis, setNis] = useState('');
+  const [tipoSanguineo, setTipoSanguineo] = useState('');
+  const [fatorRh, setFatorRh] = useState('');
+  const [naturalidade, setNaturalidade] = useState('');
+  const [historicoEscolarOrigem, setHistoricoEscolarOrigem] = useState('');
+  const [transporteEscolar, setTransporteEscolar] = useState(false);
+  const [nomePropriedadeRural, setNomePropriedadeRural] = useState('');
+  const [bolsaFamilia, setBolsaFamilia] = useState(false);
+  const [deficiencia, setDeficiencia] = useState(false);
+  const [tipoDeficiencia, setTipoDeficiencia] = useState('');
+  const [logradouro, setLogradouro] = useState('');
+  const [numero, setNumero] = useState('');
+  const [bairro, setBairro] = useState('');
+  const [cidade, setCidade] = useState('');
+  const [estado, setEstado] = useState('GO');
+  const [cep, setCep] = useState('');
+  const [fotoUrl, setFotoUrl] = useState('');
+  const [mae, setMae] = useState(emptyResp('MAE'));
+  const [pai, setPai] = useState(emptyResp('PAI'));
+  const [respLegal, setRespLegal] = useState(emptyResp('RESPONSAVEL_LEGAL'));
+  const [turmaId, setTurmaId] = useState('');
 
   useEffect(() => {
     api.get('/turmas').then((r) => setTurmas(r.data)).catch(() => {});
   }, []);
 
-  const set = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
-
-  const onFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  async function onFoto(file?: File | null) {
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setErro('Selecione uma imagem (JPG ou PNG).');
-      return;
-    }
     try {
-      const dataUrl = await processarFoto3x4(file);
-      set('fotoUrl', dataUrl);
-      setErro('');
+      setFotoUrl(await processarFoto3x4(file));
     } catch {
-      setErro('Não foi possível processar a foto.');
+      setError('Não foi possível processar a foto 3x4.');
     }
-  };
+  }
 
-  const salvar = async (e: React.FormEvent) => {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setErro('');
-    setMsg('');
+    setSaving(true);
+    setError('');
+    setMessage('');
     try {
-      const payload: any = {
-        nomeCompleto: form.nomeCompleto,
-        dataNascimento: form.dataNascimento,
-        nomeMae: form.nomeMae,
-        zona: form.zona,
-        sexo: form.sexo || undefined,
-        endereco: form.endereco || undefined,
-        bairro: form.bairro || undefined,
-        telefoneContato: form.telefoneContato || undefined,
-        alergias: form.alergias || undefined,
-        usaFralda: form.usaFralda,
-        deficiencia: form.deficiencia,
-        transporteEscolar: form.transporteEscolar,
-        bolsaFamilia: form.bolsaFamilia,
-        nis: form.nis || undefined,
-        cpf: form.cpf || undefined,
-        inepId: form.inepId || undefined,
-        fotoUrl: form.fotoUrl || undefined,
-      };
-      if (form.respNome) {
-        payload.responsaveis = [
-          {
-            nome: form.respNome,
-            parentesco: form.respParentesco,
-            telefone: form.respTelefone || undefined,
-            whatsapp: form.respWhatsapp || undefined,
-            principal: true,
-            podeBuscar: true,
-          },
-        ];
-      }
+      const responsaveis = [mae, pai, respLegal]
+        .filter((r) => r.nome.trim())
+        .map((r) => ({
+          nome: r.nome,
+          parentesco: r.parentesco,
+          telefone: r.telefone || telefoneResponsavel || undefined,
+          cpf: r.cpf || undefined,
+          rg: r.rg || undefined,
+          principal: Boolean(r.principal),
+          podeBuscar: true,
+        }));
 
-      const { data: aluno } = await api.post('/alunos', payload);
+      const { data: aluno } = await api.post('/alunos', {
+        nomeCompleto: nome,
+        dataNascimento,
+        nomeMae: mae.nome || undefined,
+        sexo,
+        zona: moradia,
+        racaCor,
+        nacionalidade,
+        sus: sus || undefined,
+        certidaoNascimento: certidaoNascimento || undefined,
+        telefoneContato: telefoneResponsavel || undefined,
+        cpf: cpf || undefined,
+        nis: nis || undefined,
+        tipoSanguineo: tipoSanguineo || undefined,
+        fatorRh: fatorRh || undefined,
+        naturalidade: naturalidade || undefined,
+        historicoEscolarOrigem: historicoEscolarOrigem || undefined,
+        transporteEscolar,
+        nomePropriedadeRural: nomePropriedadeRural || undefined,
+        bolsaFamilia,
+        deficiencia,
+        tipoDeficiencia: tipoDeficiencia || undefined,
+        endereco: logradouro || undefined,
+        numero: numero || undefined,
+        bairro: bairro || undefined,
+        cidade: cidade || undefined,
+        estado: estado || undefined,
+        cep: cep || undefined,
+        fotoUrl: fotoUrl || undefined,
+        responsaveis,
+      });
 
-      if (form.turmaId) {
+      if (turmaId) {
         await api.post('/matriculas', {
           alunoId: aluno.id,
-          turmaId: Number(form.turmaId),
+          turmaId: Number(turmaId),
           anoLetivoId: 1,
         });
       }
 
-      setMsg(
-        form.turmaId
+      setMessage(
+        turmaId
           ? `Matrícula concluída: ${aluno.nomeCompleto}`
-          : `Aluno cadastrado: ${aluno.nomeCompleto} (sem turma)`
+          : `Aluno cadastrado: ${aluno.nomeCompleto}`,
       );
-      setForm(empty);
-      setTimeout(() => router.push('/alunos'), 1500);
+      setTimeout(() => router.push('/alunos'), 1200);
     } catch (err: any) {
-      setErro(err?.response?.data?.error || 'Erro ao salvar matrícula');
+      setError(err?.response?.data?.error || 'Erro ao salvar cadastro');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
-  };
+  }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-start justify-between gap-4">
+    <div className="max-w-5xl mx-auto space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold tracking-widest text-cyan-700 uppercase">Ficha oficial</p>
-          <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-            <FileText className="text-cyan-600" /> Matrícula completa
-          </h1>
-          <p className="text-sm text-gray-500">Escola Municipal Dimas Nasser · Ano letivo 2026 · Pré ao 9º</p>
+          <h1 className="text-2xl font-black text-slate-900">Ficha de matrícula</h1>
+          <p className="text-sm text-slate-500">
+            Padrão oficial · Escola Municipal Dimas Nasser · erp-escolar-publico
+          </p>
         </div>
-        <div className="hidden sm:block text-right text-xs text-gray-400">
-          <p>Secretaria Escolar</p>
-          <p>Gestão 2025/2028</p>
-        </div>
+        <button
+          type="button"
+          onClick={() => router.push('/alunos')}
+          className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold text-slate-600"
+        >
+          <X size={16} /> Lista de alunos
+        </button>
       </div>
 
-      {msg && <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl px-4 py-3 text-sm">{msg}</div>}
-      {erro && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{erro}</div>}
+      {message && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div>
+      )}
 
-      <form onSubmit={salvar} className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-        {/* Cabeçalho formulário */}
-        <div className="bg-gradient-to-r from-slate-900 to-cyan-900 text-white px-6 py-4 flex flex-wrap justify-between gap-2">
-          <div>
-            <p className="font-bold">Requisição de Matrícula</p>
-            <p className="text-xs text-cyan-200/80">Preencha todos os campos obrigatórios (*)</p>
-          </div>
-          <p className="text-xs text-cyan-200/70 self-end">SISGESC · Volnin Tech</p>
+      <form onSubmit={onSubmit} className="rounded-2xl border border-slate-300 bg-white shadow-sm overflow-hidden">
+        <div className="bg-gradient-to-r from-slate-900 via-[#12325a] to-cyan-800 text-white px-5 py-4">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100 font-semibold">
+            Ficha de matrícula / cadastro do aluno
+          </p>
+          <h2 className="text-lg font-bold">Escola Municipal Dimas Nasser</h2>
+          <p className="text-xs text-blue-100">Campos com * são obrigatórios. Demais podem ser complementados depois.</p>
         </div>
 
-        <div className="p-6 grid lg:grid-cols-[140px_1fr] gap-8">
-          {/* Foto 3x4 */}
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Foto 3×4</p>
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="relative w-[120px] h-[160px] border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:border-cyan-500 hover:bg-cyan-50/40 transition overflow-hidden group"
-              title="Clique para enviar foto 3x4"
-            >
-              {form.fotoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={form.fotoUrl} alt="Foto 3x4" className="w-full h-full object-cover" />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-1 p-2">
-                  <Camera size={28} />
-                  <span className="text-[10px] text-center leading-tight">Clique para
-                    <br />
-                    enviar 3×4
-                  </span>
-                </div>
-              )}
-              <div className="absolute inset-x-0 bottom-0 bg-black/50 text-white text-[10px] py-1 opacity-0 group-hover:opacity-100 transition text-center">
-                Alterar
-              </div>
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFoto} />
-            <p className="text-[10px] text-gray-400 text-center leading-tight max-w-[120px]">
-              JPG/PNG · recorte automático 3×4
-            </p>
-            {form.fotoUrl && (
-              <button type="button" onClick={() => set('fotoUrl', '')} className="text-[11px] text-red-600 hover:underline">
-                Remover foto
-              </button>
-            )}
-          </div>
+        <div className="p-5 space-y-6">
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          )}
 
-          {/* Campos */}
-          <div className="space-y-6">
-            <section>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
-                <User size={14} /> Identificação do aluno
+          {/* Foto + obrigatórios */}
+          <section className="grid gap-5 lg:grid-cols-[180px_1fr]">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 flex flex-col items-center">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Foto 3×4</p>
+              <div className="h-40 w-32 rounded-xl border-2 border-dashed border-slate-300 bg-white overflow-hidden flex items-center justify-center">
+                {fotoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={fotoUrl} alt="3x4" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="text-center text-slate-400 p-2">
+                    <Camera className="mx-auto mb-1" size={22} />
+                    <p className="text-[10px]">Upload opcional</p>
+                  </div>
+                )}
+              </div>
+              <label className="mt-3 w-full">
+                <input type="file" accept="image/*" className="block w-full text-[11px]" onChange={(e) => onFoto(e.target.files?.[0])} />
+              </label>
+              <p className="mt-2 text-[10px] text-slate-500 text-center">Recorte automático 3×4 · recomendado na matrícula</p>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800 border-b pb-2">
+                1. Dados obrigatórios do aluno *
               </h3>
               <div className="grid sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="text-[11px] font-medium text-gray-600">Nome completo *</label>
-                  <input required value={form.nomeCompleto} onChange={(e) => set('nomeCompleto', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm" />
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-gray-600">Data de nascimento *</label>
-                  <input required type="date" value={form.dataNascimento} onChange={(e) => set('dataNascimento', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm" />
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-gray-600">Sexo</label>
-                  <select value={form.sexo} onChange={(e) => set('sexo', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm">
-                    <option value="">Selecione</option>
-                    <option value="M">Masculino</option>
-                    <option value="F">Feminino</option>
+                <Field label="Nome completo *" className="sm:col-span-2">
+                  <input required value={nome} onChange={(e) => setNome(e.target.value)} className="field-input" placeholder="Nome completo do aluno" />
+                </Field>
+                <Field label="Data de nascimento *">
+                  <input required type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} className="field-input" />
+                </Field>
+                <Field label="Sexo *">
+                  <select required value={sexo} onChange={(e) => setSexo(e.target.value)} className="field-input">
+                    <option value="MASCULINO">Masculino</option>
+                    <option value="FEMININO">Feminino</option>
+                    <option value="OUTRO">Outro</option>
                   </select>
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-gray-600">CPF do aluno</label>
-                  <input value={form.cpf} onChange={(e) => set('cpf', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm" placeholder="000.000.000-00" />
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-gray-600">Código INEP (se houver)</label>
-                  <input value={form.inepId} onChange={(e) => set('inepId', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm" />
-                </div>
-              </div>
-            </section>
-
-            <section>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Filiação</h3>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="text-[11px] font-medium text-gray-600">Nome da mãe *</label>
-                  <input required value={form.nomeMae} onChange={(e) => set('nomeMae', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm" />
-                </div>
-              </div>
-            </section>
-
-            <section>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Endereço e contato</h3>
-              <div className="grid sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="text-[11px] font-medium text-gray-600">Endereço</label>
-                  <input value={form.endereco} onChange={(e) => set('endereco', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm" />
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-gray-600">Bairro</label>
-                  <input value={form.bairro} onChange={(e) => set('bairro', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm" />
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-gray-600">Zona *</label>
-                  <select value={form.zona} onChange={(e) => set('zona', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm">
+                </Field>
+                <Field label="Raça/cor *">
+                  <select required value={racaCor} onChange={(e) => setRacaCor(e.target.value)} className="field-input">
+                    {RACAS.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Nacionalidade *">
+                  <input required value={nacionalidade} onChange={(e) => setNacionalidade(e.target.value)} className="field-input" />
+                </Field>
+                <Field label="Cartão SUS *">
+                  <input required value={sus} onChange={(e) => setSus(e.target.value)} className="field-input" placeholder="Número do cartão SUS" />
+                </Field>
+                <Field label="Certidão de nascimento *">
+                  <input required value={certidaoNascimento} onChange={(e) => setCertidaoNascimento(e.target.value)} className="field-input" placeholder="Nº / livro / folha / cartório" />
+                </Field>
+                <Field label="Moradia *">
+                  <select required value={moradia} onChange={(e) => setMoradia(e.target.value as 'URBANA' | 'RURAL')} className="field-input">
                     <option value="URBANA">Urbana</option>
                     <option value="RURAL">Rural</option>
                   </select>
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-gray-600">Telefone</label>
-                  <input value={form.telefoneContato} onChange={(e) => set('telefoneContato', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm" />
-                </div>
+                </Field>
+                <Field label="Telefone do responsável *">
+                  <input required value={telefoneResponsavel} onChange={(e) => setTelefoneResponsavel(e.target.value)} className="field-input" placeholder="(00) 00000-0000" />
+                </Field>
               </div>
-            </section>
+            </div>
+          </section>
 
-            <section>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Programas · Saúde · Inclusão</h3>
-              <div className="grid sm:grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className="text-[11px] font-medium text-gray-600">NIS / Bolsa Família</label>
-                  <input value={form.nis} onChange={(e) => set('nis', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm" />
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-gray-600">Alergias / restrições</label>
-                  <input value={form.alergias} onChange={(e) => set('alergias', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm" />
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-4 text-sm">
-                <label className="flex items-center gap-2"><input type="checkbox" checked={form.bolsaFamilia} onChange={(e) => set('bolsaFamilia', e.target.checked)} /> Bolsa Família</label>
-                <label className="flex items-center gap-2"><input type="checkbox" checked={form.transporteEscolar} onChange={(e) => set('transporteEscolar', e.target.checked)} /> Transporte escolar</label>
-                <label className="flex items-center gap-2"><input type="checkbox" checked={form.deficiencia} onChange={(e) => set('deficiencia', e.target.checked)} /> PcD / deficiência</label>
-                <label className="flex items-center gap-2"><input type="checkbox" checked={form.usaFralda} onChange={(e) => set('usaFralda', e.target.checked)} /> Usa fralda</label>
-              </div>
-            </section>
+          {/* Endereço */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800 border-b pb-2">2. Endereço atualizado</h3>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <Field label="Rua / Avenida" className="lg:col-span-2">
+                <input value={logradouro} onChange={(e) => setLogradouro(e.target.value)} className="field-input" />
+              </Field>
+              <Field label="Número">
+                <input value={numero} onChange={(e) => setNumero(e.target.value)} className="field-input" />
+              </Field>
+              <Field label="Bairro">
+                <input value={bairro} onChange={(e) => setBairro(e.target.value)} className="field-input" />
+              </Field>
+              <Field label="Cidade / Município">
+                <input value={cidade} onChange={(e) => setCidade(e.target.value)} className="field-input" />
+              </Field>
+              <Field label="UF">
+                <input value={estado} onChange={(e) => setEstado(e.target.value)} className="field-input" maxLength={2} />
+              </Field>
+              <Field label="CEP">
+                <input value={cep} onChange={(e) => setCep(e.target.value)} className="field-input" />
+              </Field>
+            </div>
+          </section>
 
-            <section>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Responsável (quem pode buscar)</h3>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="text-[11px] font-medium text-gray-600">Nome do responsável</label>
-                  <input value={form.respNome} onChange={(e) => set('respNome', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm" />
+          {/* Opcionais */}
+          <section className="rounded-2xl border border-slate-200 overflow-hidden">
+            <button type="button" onClick={() => setOpenOptional((v) => !v)} className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 text-left">
+              <span className="text-sm font-bold uppercase tracking-wide text-slate-800">3. Dados opcionais (podem ser inseridos depois)</span>
+              <ChevronDown className={`transition-transform ${openOptional ? 'rotate-180' : ''}`} size={18} />
+            </button>
+            {openOptional && (
+              <div className="p-4 space-y-5">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <Field label="CPF do aluno"><input value={cpf} onChange={(e) => setCpf(e.target.value)} className="field-input" /></Field>
+                  <Field label="NIS"><input value={nis} onChange={(e) => setNis(e.target.value)} className="field-input" /></Field>
+                  <Field label="Naturalidade"><input value={naturalidade} onChange={(e) => setNaturalidade(e.target.value)} className="field-input" /></Field>
+                  <Field label="Tipo sanguíneo"><input value={tipoSanguineo} onChange={(e) => setTipoSanguineo(e.target.value)} className="field-input" placeholder="A, B, AB, O" /></Field>
+                  <Field label="Fator RH (Lei 4.067/2019)">
+                    <select value={fatorRh} onChange={(e) => setFatorRh(e.target.value)} className="field-input">
+                      <option value="">Não informado</option>
+                      <option value="POSITIVO">Positivo (+)</option>
+                      <option value="NEGATIVO">Negativo (-)</option>
+                    </select>
+                  </Field>
+                  <Field label="Histórico escolar (origem)"><input value={historicoEscolarOrigem} onChange={(e) => setHistoricoEscolarOrigem(e.target.value)} className="field-input" /></Field>
                 </div>
-                <div>
-                  <label className="text-[11px] font-medium text-gray-600">Parentesco</label>
-                  <select value={form.respParentesco} onChange={(e) => set('respParentesco', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm">
-                    <option value="MAE">Mãe</option>
-                    <option value="PAI">Pai</option>
-                    <option value="AVO">Avô/Avó</option>
-                    <option value="TIO">Tio/Tia</option>
-                    <option value="OUTRO">Outro</option>
+
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={transporteEscolar} onChange={(e) => setTransporteEscolar(e.target.checked)} /> Transporte escolar</label>
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={bolsaFamilia} onChange={(e) => setBolsaFamilia(e.target.checked)} /> Bolsa Família / CadÚnico</label>
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={deficiencia} onChange={(e) => setDeficiencia(e.target.checked)} /> Pessoa com deficiência</label>
+                </div>
+
+                {transporteEscolar && (
+                  <Field label="Nome da propriedade rural">
+                    <input value={nomePropriedadeRural} onChange={(e) => setNomePropriedadeRural(e.target.value)} className="field-input" />
+                  </Field>
+                )}
+                {deficiencia && (
+                  <Field label="Tipo de deficiência">
+                    <input value={tipoDeficiencia} onChange={(e) => setTipoDeficiencia(e.target.value)} className="field-input" />
+                  </Field>
+                )}
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wide text-slate-600 flex items-center gap-2">
+                    <FileText size={14} /> Nome e documentos dos responsáveis
+                  </h4>
+                  <div className="grid lg:grid-cols-3 gap-3">
+                    <RespCard title="Mãe" data={mae} onChange={(k, v) => setMae((p) => ({ ...p, [k]: v }))} />
+                    <RespCard title="Pai" data={pai} onChange={(k, v) => setPai((p) => ({ ...p, [k]: v }))} />
+                    <RespCard title="Responsável legal" data={respLegal} onChange={(k, v) => setRespLegal((p) => ({ ...p, [k]: v }))} />
+                  </div>
+                </div>
+
+                <Field label="Matricular na turma (opcional)">
+                  <select value={turmaId} onChange={(e) => setTurmaId(e.target.value)} className="field-input">
+                    <option value="">Somente cadastrar (sem turma)</option>
+                    {turmas.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nome} · {t.turno} · vagas {t.vagas ?? t.capacidadeMax - (t.ocupacao || 0)}
+                      </option>
+                    ))}
                   </select>
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-gray-600">Telefone</label>
-                  <input value={form.respTelefone} onChange={(e) => set('respTelefone', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm" />
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-gray-600">WhatsApp</label>
-                  <input value={form.respWhatsapp} onChange={(e) => set('respWhatsapp', e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2.5 text-sm" />
-                </div>
+                </Field>
               </div>
-            </section>
+            )}
+          </section>
 
-            <section>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Turma de destino</h3>
-              <select value={form.turmaId} onChange={(e) => set('turmaId', e.target.value)} className="w-full border rounded-lg px-3 py-2.5 text-sm">
-                <option value="">Cadastrar sem matricular em turma</option>
-                {turmas.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nome} · {t.turno} · {t.etapa} · vagas {t.vagas ?? t.capacidadeMax - (t.ocupacao || 0)}
-                  </option>
-                ))}
-              </select>
-              <p className="text-[11px] text-gray-400 mt-1">Infantil: máximo 25 alunos (MEC). Sistema bloqueia turma lotada.</p>
-            </section>
+          <div className="flex flex-wrap justify-end gap-2 pt-2 border-t">
+            <button type="button" onClick={() => router.push('/alunos')} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60">
+              <Save size={16} />
+              {saving ? 'Salvando...' : 'Salvar cadastro do aluno'}
+            </button>
           </div>
         </div>
-
-        <div className="border-t bg-gray-50 px-6 py-4 flex flex-wrap justify-end gap-3">
-          <button type="button" onClick={() => router.push('/alunos')} className="px-5 py-2.5 rounded-xl border text-sm font-medium text-gray-600 hover:bg-white">
-            Cancelar
-          </button>
-          <button type="submit" disabled={loading} className="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold flex items-center gap-2 disabled:opacity-60">
-            <Save size={16} />
-            {loading ? 'Salvando...' : 'Confirmar matrícula'}
-          </button>
-        </div>
       </form>
+
+      <style jsx global>{`
+        .field-input {
+          width: 100%;
+          border: 1px solid #e2e8f0;
+          border-radius: 0.75rem;
+          padding: 0.625rem 0.75rem;
+          font-size: 0.875rem;
+          outline: none;
+          background: white;
+        }
+        .field-input:focus {
+          border-color: #0891b2;
+          box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15);
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function Field({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="block text-xs font-semibold text-slate-600 mb-1">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function RespCard({
+  title,
+  data,
+  onChange,
+}: {
+  title: string;
+  data: Responsavel;
+  onChange: (key: keyof Responsavel, value: string | boolean) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 p-3 space-y-2 bg-slate-50/50">
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-700">{title}</p>
+      <input value={data.nome} onChange={(e) => onChange('nome', e.target.value)} className="field-input" placeholder="Nome completo" />
+      <input value={data.rg} onChange={(e) => onChange('rg', e.target.value)} className="field-input" placeholder="RG" />
+      <input value={data.cpf} onChange={(e) => onChange('cpf', e.target.value)} className="field-input" placeholder="CPF" />
+      <input value={data.telefone} onChange={(e) => onChange('telefone', e.target.value)} className="field-input" placeholder="Telefone" />
     </div>
   );
 }
