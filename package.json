@@ -1,6 +1,6 @@
 {
   "name": "sisgesc-frontend",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,6 +13,7 @@
     "react-dom": "^18",
     "axios": "^1.7.2",
     "dayjs": "^1.11.11",
+    "jspdf": "^2.5.2",
     "lucide-react": "^0.400.0"
   },
   "devDependencies": {
