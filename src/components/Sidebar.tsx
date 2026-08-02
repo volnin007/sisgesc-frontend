@@ -19,6 +19,7 @@ import {
   CalendarDays,
   BarChart3,
   MessageCircle,
+  ClipboardPen,
 } from 'lucide-react';
 import { useSidebar } from '@/components/SidebarContext';
 import { LOGO_ESCOLA_SM, LOGO_VOLNIN_SM } from '@/lib/logos';
@@ -29,13 +30,14 @@ const menu = [
   { href: '/alunos', label: 'Alunos / Fichas', icon: Users },
   { href: '/turmas', label: 'Turmas', icon: GraduationCap },
   { href: '/professores', label: 'Professores', icon: UserCog },
+  { href: '/coordenacao', label: 'Coordenação', icon: ClipboardPen },
   { href: '/diario', label: 'Diário de Classe', icon: BookOpen },
   { href: '/frequencia', label: 'Frequência', icon: ClipboardCheck },
+  { href: '/boletim/1', label: 'Boletins', icon: FileText },
   { href: '/ocorrencias', label: 'Ocorrências', icon: AlertTriangle },
   { href: '/calendario', label: 'Calendário', icon: CalendarDays },
   { href: '/censo', label: 'Censo Escolar', icon: BarChart3 },
   { href: '/avisos', label: 'Avisos WhatsApp', icon: MessageCircle },
-  { href: '/boletim/1', label: 'Boletins', icon: FileText },
   { href: '/usuarios', label: 'Usuários', icon: Shield },
   { href: '/ia-duvidas', label: 'IA Dúvidas', icon: Bot },
 ];
@@ -103,7 +105,9 @@ export function Sidebar() {
         {menu.map((m) => {
           const base = m.href === '/' ? '/' : '/' + m.href.split('/').filter(Boolean)[0];
           const isActive =
-            m.href === '/' ? pathname === '/' : pathname === m.href || pathname.startsWith(base + '/') || pathname === base;
+            m.href === '/'
+              ? pathname === '/'
+              : pathname === m.href || pathname.startsWith(base + '/') || pathname === base;
           return (
             <Link
               key={m.href}
