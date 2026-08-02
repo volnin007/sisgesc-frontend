@@ -3,13 +3,13 @@ import { FormEvent, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import {
-  formatCep,
   formatCpf,
   formatPhone,
   onlyDigits,
   validateMatricula,
   type MatriculaErrors,
 } from '@/lib/validacao';
+import { CepInput } from '@/components/CepInput';
 import { Camera, CheckCircle2, ChevronDown, FileText, Save, Upload, X } from 'lucide-react';
 
 type Responsavel = {
@@ -323,7 +323,7 @@ export default function MatriculaPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-slate-900">Ficha de matrícula</h1>
-          <p className="text-sm text-slate-500">Validação de CPF, telefone, SUS e idade · Dimas Nasser</p>
+          <p className="text-sm text-slate-500">Validação de CPF, telefone, SUS, CEP e idade · Dimas Nasser</p>
         </div>
         <button type="button" onClick={() => router.push('/alunos')} className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold text-slate-600">
           <X size={16} /> Lista de alunos
@@ -336,7 +336,7 @@ export default function MatriculaPage() {
         <div className="bg-gradient-to-r from-slate-900 via-[#12325a] to-cyan-800 text-white px-5 py-4">
           <p className="text-[11px] uppercase tracking-[0.16em] text-blue-100 font-semibold">Ficha de matrícula / cadastro do aluno</p>
           <h2 className="text-lg font-bold">Escola Municipal Dimas Nasser</h2>
-          <p className="text-xs text-blue-100">Campos com * são obrigatórios. O sistema valida CPF, telefone e cartão SUS.</p>
+          <p className="text-xs text-blue-100">Campos com * são obrigatórios. CEP preenche o endereço automaticamente.</p>
         </div>
 
         <div className="p-5 space-y-6">
@@ -458,18 +458,29 @@ export default function MatriculaPage() {
 
           <section className="space-y-3">
             <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800 border-b pb-2">2. Endereço</h3>
+            <p className="text-xs text-slate-500">Digite o CEP e saia do campo — rua, bairro, cidade e UF são preenchidos automaticamente.</p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <Field label="Rua / Avenida" className="lg:col-span-2">
-                <input value={logradouro} onChange={(e) => setLogradouro(e.target.value)} className="field-input" />
-              </Field>
-              <Field label="Número">
-                <input value={numero} onChange={(e) => setNumero(e.target.value)} className="field-input" />
-              </Field>
-              <Field label="Bairro">
-                <input value={bairro} onChange={(e) => setBairro(e.target.value)} className="field-input" />
-              </Field>
-              <Field label="Cidade">
-                <input value={cidade} onChange={(e) => setCidade(e.target.value)} className="field-input" />
+              <Field label="CEP" error={fieldErrors.cep}>
+                <CepInput
+                  value={cep}
+                  className={inputCls(fieldErrors.cep)}
+                  onChange={(v) => {
+                    setCep(v);
+                    clearFieldError('cep');
+                  }}
+                  onAddress={(a) => {
+                    if (a.logradouro) setLogradouro(a.logradouro);
+                    if (a.bairro) setBairro(a.bairro);
+                    if (a.cidade) setCidade(a.cidade);
+                    if (a.estado) setEstado(a.estado);
+                    clearFieldError('cep');
+                    clearFieldError('estado');
+                  }}
+                  onError={(msg) => {
+                    if (msg) setFieldErrors((prev) => ({ ...prev, cep: msg }));
+                    else clearFieldError('cep');
+                  }}
+                />
               </Field>
               <Field label="UF" error={fieldErrors.estado}>
                 <input
@@ -482,17 +493,17 @@ export default function MatriculaPage() {
                   className={inputCls(fieldErrors.estado)}
                 />
               </Field>
-              <Field label="CEP" error={fieldErrors.cep}>
-                <input
-                  value={cep}
-                  inputMode="numeric"
-                  onChange={(e) => {
-                    setCep(formatCep(e.target.value));
-                    clearFieldError('cep');
-                  }}
-                  className={inputCls(fieldErrors.cep)}
-                  placeholder="00000-000"
-                />
+              <Field label="Cidade">
+                <input value={cidade} onChange={(e) => setCidade(e.target.value)} className="field-input" />
+              </Field>
+              <Field label="Rua / Avenida" className="lg:col-span-2">
+                <input value={logradouro} onChange={(e) => setLogradouro(e.target.value)} className="field-input" />
+              </Field>
+              <Field label="Número">
+                <input value={numero} onChange={(e) => setNumero(e.target.value)} className="field-input" />
+              </Field>
+              <Field label="Bairro" className="sm:col-span-2 lg:col-span-1">
+                <input value={bairro} onChange={(e) => setBairro(e.target.value)} className="field-input" />
               </Field>
             </div>
           </section>
