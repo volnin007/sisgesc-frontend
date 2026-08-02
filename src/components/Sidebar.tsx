@@ -20,6 +20,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { useSidebar } from '@/components/SidebarContext';
+import { LOGO_ESCOLA, LOGO_VOLNIN } from '@/lib/logos';
 
 const menu = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -54,15 +55,16 @@ export function Sidebar() {
     <aside
       className={`${
         collapsed ? 'w-[72px]' : 'w-64'
-      } bg-[#0a0f1a] text-white min-h-screen p-3 flex flex-col border-r border-cyan-500/10 shrink-0 hidden md:flex transition-all duration-200`}
+      } bg-[#0a0f1a] text-white h-screen max-h-screen sticky top-0 self-start p-3 flex flex-col border-r border-cyan-500/10 shrink-0 hidden md:flex transition-all duration-200 overflow-hidden`}
     >
-      <div className={`mb-4 flex ${collapsed ? 'flex-col items-center gap-2' : 'items-start justify-between'} gap-2`}>
-        <div className={`flex ${collapsed ? 'flex-col' : 'flex-col'} items-center w-full`}>
-          {/* Logo Volnin Tech Hacker */}
+      <div className={`mb-3 flex ${collapsed ? 'flex-col items-center gap-2' : 'items-start justify-between'} gap-2 shrink-0`}>
+        <div className="flex flex-col items-center w-full">
           <div className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-cyan-400 to-emerald-500 flex items-center justify-center font-black text-[#0a0f1a] text-xs shrink-0">
-              VT
-            </div>
+            <img
+              src={LOGO_VOLNIN}
+              alt="Volnin Tech Hacker"
+              className="h-10 w-10 object-contain shrink-0"
+            />
             {!collapsed && (
               <div>
                 <p className="text-sm font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-green-400 leading-tight">
@@ -74,27 +76,31 @@ export function Sidebar() {
           </div>
           {!collapsed && (
             <div className="mt-3 w-full rounded-xl border border-cyan-500/20 bg-white/5 p-2.5 text-center">
-              {/* Logo escola (texto oficial) */}
-              <div className="mx-auto mb-1 h-10 w-10 rounded-full bg-white flex items-center justify-center text-[10px] font-black text-slate-800">
-                DN
-              </div>
+              <img
+                src={LOGO_ESCOLA}
+                alt="Escola Municipal Dimas Nasser"
+                className="mx-auto mb-1 h-14 w-14 object-contain rounded-full bg-white"
+              />
               <p className="text-xs font-bold text-white leading-tight">SISGESC</p>
-              <p className="text-[10px] text-cyan-100/70 leading-snug">Escola Municipal Dimas Nasser</p>
-              <p className="text-[9px] text-cyan-200/50">Pré ao 9º Ano</p>
+              <p className="text-[10px] text-cyan-100/80 leading-snug">Escola Municipal Dimas Nasser</p>
+              <p className="text-[9px] text-cyan-200/60">Pré ao 9º · Gestão 2025/2028</p>
             </div>
+          )}
+          {collapsed && (
+            <img src={LOGO_ESCOLA} alt="Escola" className="mt-2 h-9 w-9 object-contain rounded-full bg-white" />
           )}
         </div>
         <button
           type="button"
           onClick={toggle}
-          className="p-1.5 rounded-lg hover:bg-white/10 text-cyan-300/80 self-end"
+          className="p-1.5 rounded-lg hover:bg-white/10 text-cyan-300/80 self-end shrink-0"
           title={collapsed ? 'Expandir menu' : 'Recolher menu'}
         >
           {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
       </div>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto min-h-0 pr-0.5">
         {menu.map((m) => {
           const base = m.href === '/' ? '/' : '/' + m.href.split('/').filter(Boolean)[0];
           const isActive =
@@ -117,12 +123,10 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
+      <div className="mt-3 pt-3 border-t border-white/10 space-y-2 shrink-0">
         <button
           onClick={sair}
-          className={`w-full flex items-center gap-2 text-xs text-gray-400 hover:text-red-400 py-2 rounded-lg hover:bg-white/5 transition ${
-            collapsed ? 'justify-center' : 'justify-center'
-          }`}
+          className="w-full flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-red-400 py-2 rounded-lg hover:bg-white/5 transition"
           title="Sair"
         >
           <LogOut size={14} />

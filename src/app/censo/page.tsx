@@ -1,7 +1,31 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { BarChart3, Printer } from 'lucide-react';
+import { BarChart3, Download, Printer } from 'lucide-react';
+
+function toCsv(rows: (string | number)[][]) {
+  return rows
+    .map((r) =>
+      r
+        .map((c) => {
+          const s = String(c ?? '');
+          if (/[",;\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+          return s;
+        })
+        .join(';'),
+    )
+    .join('\n');
+}
+
+function downloadCsv(filename: string, content: string) {
+  const blob = new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function CensoPage() {
   const [data, setData] = useState<any>(null);
@@ -14,8 +38,49 @@ export default function CensoPage() {
       .catch(() => setErr('Não foi possível carregar o resumo do censo.'));
   }, []);
 
-  if (err) return <p className="text-red-700">{err}</p>;
-  if (!data) return <p className="text-slate-600">Carregando indicadores do Censo Escolar...</p>;
+  function exportarCsv() {
+    if (!data) return;
+    const t = data.totais || {};
+    const rows: (string | number)[][] = [
+      ['SISGESC - Censo Escolar'],
+      [data.escola || 'Escola Municipal Dimas Nasser'],
+      ['Gerado em', new Date(data.geradoEm || Date.now()).toLocaleString('pt-BR')],
+      [],
+      ['Indicador', 'Valor'],
+      ['Alunos cadastrados', t.alunosCadastrados ?? 0],
+      ['Matrículas ativas', t.matriculasAtivas ?? 0],
+      ['Turmas', t.turmas ?? 0],
+      ['Professores', t.professores ?? 0],
+      ['PcD', t.pcd ?? 0],
+      ['Transporte escolar', t.transporteEscolar ?? 0],
+      ['Bolsa Família', t.bolsaFamilia ?? 0],
+      [],
+      ['Sexo', 'Quantidade'],
+      ...Object.entries(data.porSexo || {}),
+      [],
+      ['Raça/cor', 'Quantidade'],
+      ...Object.entries(data.porRacaCor || {}),
+      [],
+      ['Zona', 'Quantidade'],
+      ...Object.entries(data.porZona || {}),
+      [],
+      ['Etapa', 'Quantidade'],
+      ...Object.entries(data.porEtapa || {}),
+      [],
+      ['Turma', 'Etapa', 'Turno', 'Matriculados', 'Capacidade'],
+      ...(data.turmas || []).map((x: any) => [
+        x.nome,
+        x.etapa,
+        x.turno,
+        x.matriculados,
+        x.capacidade,
+      ]),
+    ];
+    downloadCsv(`censo-dimas-nasser-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
+  }
+
+  if (err) return <p className="text-red-700 font-medium">{err}</p>;
+  if (!data) return <p className="text-slate-700">Carregando indicadores do Censo Escolar...</p>;
 
   const t = data.totais || {};
 
@@ -33,9 +98,22 @@ export default function CensoPage() {
             </p>
           </div>
         </div>
-        <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold no-print">
-          <Printer size={16} /> Imprimir
-        </button>
+        <div className="flex flex-wrap gap-2 no-print">
+          <button
+            type="button"
+            onClick={exportarCsv}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-700 text-white px-4 py-2 text-sm font-bold"
+          >
+            <Download size={16} /> Exportar CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold"
+          >
+            <Printer size={16} /> Imprimir
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -70,21 +148,21 @@ export default function CensoPage() {
             </tr>
           </thead>
           <tbody>
-            {(data.turmas || []).map((t: any) => (
-              <tr key={t.id} className="border-t">
-                <td className="px-4 py-2 font-medium">{t.nome}</td>
-                <td className="px-4 py-2">{t.etapa}</td>
-                <td className="px-4 py-2">{t.turno}</td>
-                <td className="px-4 py-2">{t.matriculados}</td>
-                <td className="px-4 py-2">{t.capacidade}</td>
+            {(data.turmas || []).map((row: any) => (
+              <tr key={row.id} className="border-t">
+                <td className="px-4 py-2 font-medium">{row.nome}</td>
+                <td className="px-4 py-2">{row.etapa}</td>
+                <td className="px-4 py-2">{row.turno}</td>
+                <td className="px-4 py-2">{row.matriculados}</td>
+                <td className="px-4 py-2">{row.capacidade}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <p className="text-xs text-slate-500">
-        Gerado em {new Date(data.geradoEm).toLocaleString('pt-BR')} · indicadores internos para apoio ao Censo Escolar / Educacenso.
+      <p className="text-xs text-slate-600">
+        Gerado em {new Date(data.geradoEm).toLocaleString('pt-BR')} · CSV com separador ";" e BOM UTF-8 para Excel/Educacenso.
       </p>
     </div>
   );
@@ -93,7 +171,7 @@ export default function CensoPage() {
 function Card({ title, value }: { title: string; value: number }) {
   return (
     <div className="bg-white rounded-2xl border p-4 shadow-sm">
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-600">{title}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-700">{title}</p>
       <p className="text-3xl font-black text-slate-900 mt-1">{value ?? 0}</p>
     </div>
   );
@@ -104,7 +182,7 @@ function Block({ title, obj }: { title: string; obj: Record<string, number> }) {
   return (
     <div className="bg-white rounded-2xl border p-4 shadow-sm">
       <h3 className="font-bold text-slate-900 mb-3">{title}</h3>
-      {entries.length === 0 && <p className="text-sm text-slate-500">Sem dados</p>}
+      {entries.length === 0 && <p className="text-sm text-slate-600">Sem dados</p>}
       <ul className="space-y-1.5">
         {entries.map(([k, v]) => (
           <li key={k} className="flex justify-between text-sm border-b border-slate-100 pb-1">
