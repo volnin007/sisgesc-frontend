@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { FileText, AlertTriangle, CheckCircle2, Search } from 'lucide-react';
+import { FileText, AlertTriangle, CheckCircle2, Search, Printer } from 'lucide-react';
 
 export default function BoletimPage({ params }: { params: { matriculaId: string } }) {
   const [dados, setDados] = useState<any>(null);
@@ -18,11 +18,9 @@ export default function BoletimPage({ params }: { params: { matriculaId: string 
       if (data.error) {
         setErro(data.error);
         setDados(null);
-      } else {
-        setDados(data);
-      }
+      } else setDados(data);
     } catch {
-      setErro('Não foi possível carregar o boletim. Verifique o ID da matrícula.');
+      setErro('Não foi possível carregar o boletim.');
       setDados(null);
     } finally {
       setLoading(false);
@@ -42,9 +40,11 @@ export default function BoletimPage({ params }: { params: { matriculaId: string 
     return 'bg-gray-100 text-gray-700 border-gray-200';
   };
 
+  const gerarPdf = () => window.print();
+
   return (
     <div className="space-y-6 max-w-5xl">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <FileText className="text-cyan-600" /> Boletim Escolar
@@ -52,156 +52,161 @@ export default function BoletimPage({ params }: { params: { matriculaId: string 
           <p className="text-sm text-gray-500">Escola Municipal Dimas Nasser · Pré ao 9º Ano</p>
         </div>
         <div className="flex gap-2">
-          <input
-            value={id}
-            onChange={(e) => setId(e.target.value)}
-            placeholder="ID da matrícula"
-            className="border rounded-lg px-3 py-2 text-sm w-36"
-          />
-          <button
-            onClick={() => carregar(id)}
-            className="bg-cyan-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2"
-          >
+          <input value={id} onChange={(e) => setId(e.target.value)} placeholder="ID matrícula" className="border rounded-lg px-3 py-2 text-sm w-36" />
+          <button onClick={() => carregar(id)} className="bg-cyan-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
             <Search size={16} /> Buscar
           </button>
+          {dados && (
+            <button onClick={gerarPdf} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+              <Printer size={16} /> Gerar PDF / Imprimir
+            </button>
+          )}
         </div>
       </div>
 
-      {loading && <p className="text-sm text-gray-500">Carregando boletim...</p>}
+      {loading && <p className="text-sm text-gray-500 print:hidden">Carregando...</p>}
       {erro && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm flex gap-2">
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm flex gap-2 print:hidden">
           <AlertTriangle size={18} /> {erro}
         </div>
       )}
 
       {dados && (
-        <>
-          <div className="bg-white rounded-2xl border shadow-sm p-6">
+        <div id="boletim-print" className="space-y-4 bg-white print:shadow-none">
+          {/* Cabeçalho impressão */}
+          <div className="border rounded-2xl p-6 print:border-black print:rounded-none">
+            <div className="text-center border-b pb-4 mb-4 print:border-black">
+              <p className="text-xs tracking-widest text-gray-500 uppercase">Estado de Goiás · Rede Municipal</p>
+              <h2 className="text-xl font-black mt-1">Escola Municipal Dimas Nasser</h2>
+              <p className="text-sm text-gray-600">Boletim Escolar · {dados.tipo === 'INFANTIL' ? 'Educação Infantil' : 'Ensino Fundamental'}</p>
+              <p className="text-xs text-gray-400 mt-1">Gestão 2025/2028 · SISGESC</p>
+            </div>
+
             <div className="flex flex-wrap justify-between gap-4">
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide">Aluno</p>
-                <p className="text-xl font-bold">{dados.matricula?.aluno?.nomeCompleto}</p>
+                <p className="text-xs text-gray-500 uppercase">Aluno</p>
+                <p className="text-lg font-bold">{dados.matricula?.aluno?.nomeCompleto}</p>
                 <p className="text-sm text-gray-600 mt-1">
-                  {dados.matricula?.turma?.nome} · {dados.matricula?.turma?.etapa} ·{' '}
-                  {dados.matricula?.turma?.anoSerie}
+                  {dados.matricula?.turma?.nome} · {dados.matricula?.turma?.anoSerie} · {dados.matricula?.turma?.turno}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Matrícula {dados.matricula?.numeroMatricula} · Status {dados.matricula?.status}
+                  Matrícula {dados.matricula?.numeroMatricula} · Nasc.{' '}
+                  {dados.matricula?.aluno?.dataNascimento
+                    ? new Date(dados.matricula.aluno.dataNascimento).toLocaleDateString('pt-BR')
+                    : '—'}
                 </p>
               </div>
               <div className="text-right">
                 <span className={`inline-block text-xs font-bold px-3 py-1.5 rounded-full border ${corSituacao(dados.situacaoGeral?.resultado)}`}>
                   {dados.situacaoGeral?.resultado || dados.tipo}
                 </span>
-                <p className="text-xs text-gray-500 mt-2 max-w-xs">{dados.situacaoGeral?.detalhe}</p>
+                <p className="text-xs text-gray-500 mt-2 max-w-xs ml-auto">{dados.situacaoGeral?.detalhe}</p>
               </div>
             </div>
           </div>
 
           {dados.frequencia && (
-            <div className="bg-white rounded-2xl border p-5">
+            <div className="border rounded-2xl p-5 print:border-black print:rounded-none">
               <h3 className="font-semibold text-sm mb-3">Frequência</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                <div className="bg-gray-50 rounded-lg p-3">
+                <div className="bg-gray-50 rounded-lg p-3 print:border print:border-gray-300">
                   <p className="text-xs text-gray-500">Aulas</p>
                   <p className="font-bold text-lg">{dados.frequencia.total ?? 0}</p>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3">
+                <div className="bg-gray-50 rounded-lg p-3 print:border print:border-gray-300">
                   <p className="text-xs text-gray-500">Presenças</p>
                   <p className="font-bold text-lg">{dados.frequencia.presentes ?? 0}</p>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3">
+                <div className="bg-gray-50 rounded-lg p-3 print:border print:border-gray-300">
                   <p className="text-xs text-gray-500">Percentual</p>
                   <p className="font-bold text-lg">
                     {dados.frequencia.percentual != null ? `${dados.frequencia.percentual}%` : '—'}
                   </p>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">Mínimo / Situação</p>
+                <div className="bg-gray-50 rounded-lg p-3 print:border print:border-gray-300">
+                  <p className="text-xs text-gray-500">Mínimo</p>
                   <p className="font-bold text-sm">{dados.frequencia.minimo}% · {dados.frequencia.situacao}</p>
                 </div>
               </div>
-              {dados.frequencia.observacao && (
-                <p className="text-xs text-amber-700 mt-3 flex gap-1">
-                  <AlertTriangle size={14} /> {dados.frequencia.observacao}
-                </p>
-              )}
             </div>
           )}
 
           {dados.tipo === 'INFANTIL' ? (
-            <div className="bg-white rounded-2xl border p-6">
-              <h3 className="font-semibold mb-1">Campos de Experiência (BNCC)</h3>
-              <p className="text-xs text-gray-500 mb-4">{dados.regras?.nota}</p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-left">
-                    <tr>
-                      <th className="p-3">Campo</th>
-                      <th className="p-3">Bimestre</th>
-                      <th className="p-3">Conceito</th>
-                      <th className="p-3">Parecer</th>
+            <div className="border rounded-2xl p-6 print:border-black print:rounded-none">
+              <h3 className="font-semibold mb-3">Campos de Experiência (BNCC)</h3>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-left">
+                  <tr>
+                    <th className="p-2">Campo</th>
+                    <th className="p-2">Bim</th>
+                    <th className="p-2">Conceito</th>
+                    <th className="p-2">Parecer</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(dados.avaliacoes || []).map((a: any) => (
+                    <tr key={a.id} className="border-t">
+                      <td className="p-2">{a.campoExperiencia}</td>
+                      <td className="p-2">{a.bimestre}º</td>
+                      <td className="p-2">{a.conceito}</td>
+                      <td className="p-2 text-gray-600">{a.parecerDescritivo || '—'}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {(dados.avaliacoes || []).map((a: any) => (
-                      <tr key={a.id} className="border-t">
-                        <td className="p-3 font-medium">{a.campoExperiencia}</td>
-                        <td className="p-3">{a.bimestre}º</td>
-                        <td className="p-3">
-                          <span className={`text-xs px-2 py-1 rounded-full border ${corSituacao(a.conceito === 'ALCANCOU' ? 'APROVADO' : 'ALERTA')}`}>
-                            {a.conceito}
-                          </span>
-                        </td>
-                        <td className="p-3 text-gray-600">{a.parecerDescritivo || '—'}</td>
-                      </tr>
-                    ))}
-                    {(!dados.avaliacoes || dados.avaliacoes.length === 0) && (
-                      <tr>
-                        <td colSpan={4} className="p-4 text-center text-gray-400">
-                          Nenhuma avaliação lançada
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border p-6">
-              <h3 className="font-semibold mb-1">Rendimento por disciplina</h3>
-              <p className="text-xs text-gray-500 mb-4">
-                Média mínima 6,0 · {dados.regras?.formulaMedia}
-                {dados.regras?.progressaoContinuada && ' · Progressão continuada (1º/2º ano)'}
-              </p>
-              <div className="grid md:grid-cols-2 gap-4">
-                {(dados.medias || []).map((m: any) => (
-                  <div key={m.disciplina} className="border rounded-xl p-4 hover:shadow-sm transition">
-                    <div className="flex justify-between items-start">
-                      <p className="font-bold">{m.disciplina}</p>
-                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${corSituacao(m.situacao)}`}>
-                        {m.situacao}
-                      </span>
-                    </div>
-                    <p className="text-3xl font-black text-gray-800 mt-2">{m.media}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {m.bimestresLancados} bimestre(s) · notas: {(m.notas || []).join(', ')}
-                    </p>
-                    {m.observacao && <p className="text-xs text-amber-700 mt-2">{m.observacao}</p>}
-                  </div>
-                ))}
-                {(!dados.medias || dados.medias.length === 0) && (
-                  <p className="text-sm text-gray-400 col-span-2">Nenhuma nota lançada</p>
-                )}
-              </div>
+            <div className="border rounded-2xl p-6 print:border-black print:rounded-none">
+              <h3 className="font-semibold mb-3">Rendimento</h3>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-left">
+                  <tr>
+                    <th className="p-2">Disciplina</th>
+                    <th className="p-2">Notas</th>
+                    <th className="p-2">Média</th>
+                    <th className="p-2">Situação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(dados.medias || []).map((m: any) => (
+                    <tr key={m.disciplina} className="border-t">
+                      <td className="p-2 font-medium">{m.disciplina}</td>
+                      <td className="p-2">{(m.notas || []).join(' · ')}</td>
+                      <td className="p-2 font-bold">{m.media}</td>
+                      <td className="p-2">
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${corSituacao(m.situacao)}`}>
+                          {m.situacao}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
-          <div className="text-xs text-gray-400 flex items-center gap-2">
-            <CheckCircle2 size={14} /> Documento gerado pelo SISGESC · {dados.escola}
+          <div className="hidden print:block text-xs text-gray-500 pt-8 border-t mt-8">
+            <div className="grid grid-cols-2 gap-8 mt-12">
+              <div className="text-center border-t border-gray-400 pt-2">Secretaria Escolar</div>
+              <div className="text-center border-t border-gray-400 pt-2">Direção</div>
+            </div>
+            <p className="text-center mt-8">Documento gerado pelo SISGESC · Escola Municipal Dimas Nasser · {new Date().toLocaleDateString('pt-BR')}</p>
           </div>
-        </>
+
+          <div className="text-xs text-gray-400 flex items-center gap-2 print:hidden">
+            <CheckCircle2 size={14} /> Use “Gerar PDF / Imprimir” e escolha “Salvar como PDF” no navegador.
+          </div>
+        </div>
       )}
+
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #boletim-print, #boletim-print * { visibility: visible !important; }
+          #boletim-print { position: absolute; left: 0; top: 0; width: 100%; padding: 12px; }
+          .print\\:hidden { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
