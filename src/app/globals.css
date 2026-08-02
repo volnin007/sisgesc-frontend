@@ -1,4 +1,47 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-body { font-family: Inter, system-ui, sans-serif; }
+
+:root {
+  --text: #0f172a;
+  --text-muted: #334155;
+}
+
+body {
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  font-size: 15.5px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  color: #0b1220;
+  letter-spacing: -0.01em;
+}
+
+p, label, td, th, li, span {
+  color: inherit;
+}
+
+/* Tipografia mais legível em formulários */
+input, select, textarea, button {
+  font-size: 0.95rem;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  body {
+    background: white !important;
+    font-size: 12pt;
+    color: #000 !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+}

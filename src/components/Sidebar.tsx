@@ -13,7 +13,13 @@ import {
   UserCog,
   Shield,
   ClipboardList,
+  PanelLeftClose,
+  PanelLeftOpen,
+  AlertTriangle,
+  CalendarDays,
+  BarChart3,
 } from 'lucide-react';
+import { useSidebar } from '@/components/SidebarContext';
 
 const menu = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -23,6 +29,9 @@ const menu = [
   { href: '/professores', label: 'Professores', icon: UserCog },
   { href: '/diario', label: 'Diário de Classe', icon: BookOpen },
   { href: '/frequencia', label: 'Frequência', icon: ClipboardCheck },
+  { href: '/ocorrencias', label: 'Ocorrências', icon: AlertTriangle },
+  { href: '/calendario', label: 'Calendário', icon: CalendarDays },
+  { href: '/censo', label: 'Censo Escolar', icon: BarChart3 },
   { href: '/boletim/1', label: 'Boletins', icon: FileText },
   { href: '/usuarios', label: 'Usuários', icon: Shield },
   { href: '/ia-duvidas', label: 'IA Dúvidas', icon: Bot },
@@ -31,6 +40,7 @@ const menu = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { collapsed, toggle } = useSidebar();
 
   if (pathname === '/login') return null;
 
@@ -41,17 +51,50 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-64 bg-[#0a0f1a] text-white min-h-screen p-4 flex flex-col border-r border-cyan-500/10 shrink-0 hidden md:flex">
-      <div className="mb-6 flex flex-col items-center">
-        <h1 className="text-lg font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-green-400">VOLNIN</h1>
-        <p className="text-[9px] font-bold tracking-[0.3em] text-cyan-300/70 -mt-1">TECH HACKER</p>
-        <div className="mt-3 text-center">
-          <p className="text-sm font-bold text-white">SISGESC</p>
-          <p className="text-[10px] text-cyan-200/60">Dimas Nasser<br />Pré ao 9º Ano</p>
+    <aside
+      className={`${
+        collapsed ? 'w-[72px]' : 'w-64'
+      } bg-[#0a0f1a] text-white min-h-screen p-3 flex flex-col border-r border-cyan-500/10 shrink-0 hidden md:flex transition-all duration-200`}
+    >
+      <div className={`mb-4 flex ${collapsed ? 'flex-col items-center gap-2' : 'items-start justify-between'} gap-2`}>
+        <div className={`flex ${collapsed ? 'flex-col' : 'flex-col'} items-center w-full`}>
+          {/* Logo Volnin Tech Hacker */}
+          <div className="flex items-center gap-2">
+            <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-cyan-400 to-emerald-500 flex items-center justify-center font-black text-[#0a0f1a] text-xs shrink-0">
+              VT
+            </div>
+            {!collapsed && (
+              <div>
+                <p className="text-sm font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-green-400 leading-tight">
+                  VOLNIN
+                </p>
+                <p className="text-[8px] font-bold tracking-[0.25em] text-cyan-300/70">TECH HACKER</p>
+              </div>
+            )}
+          </div>
+          {!collapsed && (
+            <div className="mt-3 w-full rounded-xl border border-cyan-500/20 bg-white/5 p-2.5 text-center">
+              {/* Logo escola (texto oficial) */}
+              <div className="mx-auto mb-1 h-10 w-10 rounded-full bg-white flex items-center justify-center text-[10px] font-black text-slate-800">
+                DN
+              </div>
+              <p className="text-xs font-bold text-white leading-tight">SISGESC</p>
+              <p className="text-[10px] text-cyan-100/70 leading-snug">Escola Municipal Dimas Nasser</p>
+              <p className="text-[9px] text-cyan-200/50">Pré ao 9º Ano</p>
+            </div>
+          )}
         </div>
+        <button
+          type="button"
+          onClick={toggle}
+          className="p-1.5 rounded-lg hover:bg-white/10 text-cyan-300/80 self-end"
+          title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+        >
+          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        </button>
       </div>
 
-      <nav className="flex-1 space-y-1">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto">
         {menu.map((m) => {
           const base = m.href === '/' ? '/' : '/' + m.href.split('/').filter(Boolean)[0];
           const isActive =
@@ -60,29 +103,37 @@ export function Sidebar() {
             <Link
               key={m.href}
               href={m.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
+              title={m.label}
+              className={`flex items-center gap-3 px-2.5 py-2.5 rounded-lg text-[13px] font-medium transition ${
                 isActive
-                  ? 'bg-gradient-to-r from-cyan-600/30 to-green-600/30 border border-cyan-500/20 text-cyan-300'
-                  : 'hover:bg-white/5 text-gray-400 hover:text-white'
-              }`}
+                  ? 'bg-gradient-to-r from-cyan-600/30 to-green-600/30 border border-cyan-500/20 text-cyan-200'
+                  : 'hover:bg-white/5 text-gray-300 hover:text-white'
+              } ${collapsed ? 'justify-center' : ''}`}
             >
-              <m.icon size={18} /> {m.label}
+              <m.icon size={18} className="shrink-0" />
+              {!collapsed && <span className="truncate">{m.label}</span>}
             </Link>
           );
         })}
       </nav>
 
-      <div className="mt-6 pt-4 border-t border-white/10 space-y-3">
+      <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
         <button
           onClick={sair}
-          className="w-full flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-red-400 py-2 rounded-lg hover:bg-white/5 transition"
+          className={`w-full flex items-center gap-2 text-xs text-gray-400 hover:text-red-400 py-2 rounded-lg hover:bg-white/5 transition ${
+            collapsed ? 'justify-center' : 'justify-center'
+          }`}
+          title="Sair"
         >
-          <LogOut size={14} /> Sair
+          <LogOut size={14} />
+          {!collapsed && 'Sair'}
         </button>
-        <div className="text-center space-y-1">
-          <p className="text-[9px] tracking-widest text-cyan-300/50">ETHICAL | SECURITY | CODE</p>
-          <p className="text-[11px] text-cyan-300 font-mono">(66) 93618-2776</p>
-        </div>
+        {!collapsed && (
+          <div className="text-center space-y-0.5">
+            <p className="text-[9px] tracking-widest text-cyan-300/50">ETHICAL | SECURITY | CODE</p>
+            <p className="text-[11px] text-cyan-300 font-mono">(66) 93618-2776</p>
+          </div>
+        )}
       </div>
     </aside>
   );
